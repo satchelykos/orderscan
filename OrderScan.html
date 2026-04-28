@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1117">
+<title>OrderScan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --s1: #161b22;
+  --s2: #21262d;
+  --s3: #30363d;
+  --border: #30363d;
+  --accent: #2ea043;
+  --accent-light: rgba(46,160,67,0.15);
+  --blue: #388bfd;
+  --blue-light: rgba(56,139,253,0.12);
+  --warn: #f85149;
+  --warn-light: rgba(248,81,73,0.12);
+  --amber: #e3b341;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #484f58;
+  --r: 10px;
+  --font: 'Manrope', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100dvh; max-width: 480px; margin: 0 auto; overflow-x: hidden; }
+
+/* SCREENS */
+.screen { display: none; min-height: 100dvh; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* HEADER */
+.hdr {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(13,17,23,0.95); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.hdr-logo { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.5px; }
+.hdr-logo .dot { color: var(--accent); }
+.hdr-sub { font-size: 0.7rem; color: var(--text2); font-family: var(--mono); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdr-btn { background: var(--s2); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); font-size: 0.78rem; font-weight: 600; font-family: var(--font); padding: 6px 12px; cursor: pointer; }
+
+/* SCROLL CONTENT */
+.content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pad { padding: 16px; }
+
+/* BUTTONS */
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 20px; border-radius: var(--r); font-family: var(--font); font-size: 0.9rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s; width: 100%; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+.btn-secondary { background: var(--s2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:active { background: var(--s3); }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-blue:active { opacity: 0.85; }
+.btn-warn { background: var(--warn-light); color: var(--warn); border: 1px solid rgba(248,81,73,0.3); }
+.btn-sm { padding: 9px 14px; font-size: 0.82rem; width: auto; border-radius: 8px; }
+.btn-icon { width: 40px; height: 40px; padding: 0; border-radius: 8px; font-size: 1.1rem; }
+.btn-row { display: flex; gap: 10px; }
+.btn-row .btn { flex: 1; }
+
+/* FIELDS */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+.field input, .field textarea {
+  width: 100%; padding: 12px 14px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-family: var(--mono); font-size: 0.88rem;
+  outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+}
+.field input:focus, .field textarea:focus { border-color: var(--blue); }
+.field textarea { resize: none; height: 70px; }
+
+/* SECTION */
+.section-title { font-size: 0.72rem; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+.gap { height: 16px; }
+.gap-sm { height: 10px; }
+
+/* ── SCREEN 1: HOME ── */
+#screen-home .hero {
+  padding: 32px 16px 20px;
+  text-align: center;
+}
+#screen-home .hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: -1px; }
+#screen-home .hero h1 .dot { color: var(--accent); }
+#screen-home .hero p { color: var(--text2); font-size: 0.88rem; margin-top: 6px; }
+
+.store-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.store-card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 12px;
+  cursor: pointer; transition: all 0.15s; text-align: left;
+  position: relative; overflow: hidden;
+}
+.store-card:active { background: var(--s2); transform: scale(0.97); }
+.store-card .sc-icon { font-size: 1.4rem; margin-bottom: 8px; }
+.store-card .sc-name { font-size: 0.8rem; font-weight: 700; line-height: 1.3; }
+.store-card .sc-count { font-size: 0.7rem; color: var(--text2); font-family: var(--mono); margin-top: 4px; }
+.store-card .sc-badge {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--accent); color: #000;
+  font-size: 0.6rem; font-weight: 800; font-family: var(--mono);
+  padding: 2px 6px; border-radius: 20px;
+}
+.store-card.custom { border-style: dashed; border-color: var(--text3); }
+.store-card.custom .sc-name { color: var(--text2); }
+
+/* ── SCREEN 2: SCAN ── */
+.scan-wrap { position: relative; background: #000; overflow: hidden; flex-shrink: 0; }
+#scanner-container { width: 100%; aspect-ratio: 4/3; position: relative; }
+#scanner-container video { width: 100% !important; height: 100% !important; object-fit: cover; display: block; }
+#scanner-container canvas { display: none !important; }
+.scan-ui {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center; pointer-events: none;
+}
+.scan-box {
+  width: 72%; aspect-ratio: 3.5/1;
+  border: 2px solid var(--accent);
+  border-radius: 8px; position: relative;
+  box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
+}
+.scan-box::before, .scan-box::after {
+  content: ''; position: absolute; width: 16px; height: 16px; border-color: #fff; border-style: solid;
+}
+.scan-box::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
+.scan-box::after  { top: -2px; right: -2px; border-width: 3px 3px 0 0; }
+.scan-line {
+  position: absolute; left: 2px; right: 2px; top: 0;
+  height: 2px; background: var(--accent);
+  box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(46,160,67,0.5);
+  animation: scanline 2s linear infinite;
+}
+@keyframes scanline { 0%,100% { top:0; } 50% { top: calc(100% - 2px); } }
+.scan-hint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.6); font-family: var(--mono); }
+
+/* SCAN INFO BAR */
+.scan-info-bar {
+  background: var(--s1); border-bottom: 1px solid var(--border);
+  padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.sib-store { font-size: 0.78rem; font-weight: 700; color: var(--accent); }
+.sib-count { font-size: 0.78rem; font-family: var(--mono); color: var(--text2); }
+
+/* ORDER LIST */
+.order-list { padding: 12px 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.order-item {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 12px 14px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+  animation: slideIn 0.2s ease;
+}
+@keyframes slideIn { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+.oi-info { flex: 1; min-width: 0; }
+.oi-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oi-code { font-size: 0.7rem; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
+.oi-qty { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.oi-qty-val { font-size: 1.1rem; font-weight: 800; font-family: var(--mono); color: var(--accent); min-width: 28px; text-align: center; }
+.oi-qty-btn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--s2); color: var(--text); font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.oi-del { width: 30px; height: 30px; border-radius: 8px; border: none; background: var(--warn-light); color: var(--warn); font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+.order-empty { text-align: center; padding: 40px 20px; color: var(--text2); }
+.order-empty .oe-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+.order-empty p { font-size: 0.85rem; }
+
+/* SCAN BOTTOM BAR */
+.scan-bottom {
+  padding: 12px 16px; background: var(--s1);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 10px; flex-shrink: 0;
+}
+
+/* ── MODAL ── */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+  align-items: flex-end; justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 16px 16px 0 0; padding: 20px 20px 32px;
+  width: 100%; max-width: 480px; animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-handle { width: 36px; height: 4px; background: var(--s3); border-radius: 2px; margin: 0 auto 16px; }
+.modal-title { font-size: 1rem; font-weight: 800; margin-bottom: 4px; }
+.modal-sub { font-size: 0.8rem; color: var(--text2); margin-bottom: 20px; font-family: var(--mono); }
+
+/* QTY MODAL */
+.qty-display { text-align: center; padding: 20px 0; }
+.qty-big { font-size: 4rem; font-weight: 800; font-family: var(--mono); color: var(--accent); line-height: 1; }
+.qty-label { font-size: 0.75rem; color: var(--text2); margin-top: 4px; }
+.qty-pad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 16px 0; }
+.qty-key { background: var(--s2); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 10px; font-size: 1.4rem; font-weight: 700; font-family: var(--mono); cursor: pointer; text-align: center; transition: all 0.1s; }
+.qty-key:active { background: var(--s3); transform: scale(0.95); }
+.qty-key.del { font-size: 1rem; color: var(--text2); }
+.qty-key.zero { font-size: 1.4rem; }
+
+/* STORE MODAL */
+.store-form { }
+
+/* NOTIFY */
+.notify {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 10px 20px;
+  font-size: 0.85rem; font-weight: 600;
+  z-index: 300; opacity: 0; transition: all 0.25s;
+  white-space: nowrap; pointer-events: none; max-width: 90vw;
+  text-align: center;
+}
+.notify.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.notify.success { border-color: var(--accent); color: var(--accent); }
+.notify.error { border-color: var(--warn); color: var(--warn); }
+.notify.info { border-color: var(--blue); color: var(--blue); }
+
+/* MANAGE STORES */
+.store-list-item {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+}
+.sli-info { flex: 1; }
+.sli-name { font-size: 0.88rem; font-weight: 700; }
+.sli-email { font-size: 0.75rem; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
+.sli-count { font-size: 0.7rem; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+.sli-actions { display: flex; gap: 6px; }
+.sli-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--s2); color: var(--text2); font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+/* EMAIL PREVIEW */
+.email-preview {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px;
+  font-family: var(--mono); font-size: 0.8rem; color: var(--text2);
+  white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+  margin-bottom: 16px; line-height: 1.6;
+}
+
+/* NAV TABS */
+.nav-tabs {
+  display: flex; gap: 4px; padding: 8px 12px;
+  background: var(--s1); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nav-tab {
+  flex: 1; padding: 8px 6px; border-radius: 8px;
+  border: none; background: transparent; color: var(--text2);
+  font-family: var(--font); font-size: 0.75rem; font-weight: 600;
+  cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.nav-tab.active { background: var(--s2); color: var(--text); border: 1px solid var(--border); }
+
+/* CAMERA OFF STATE */
+.cam-off {
+  aspect-ratio: 4/3; background: var(--s2); display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; flex-shrink: 0;
+}
+.cam-off .co-icon { font-size: 2.5rem; opacity: 0.3; }
+.cam-off p { font-size: 0.85rem; color: var(--text2); }
+
+/* FLASH */
+.scan-flash {
+  position: absolute; inset: 0; background: white;
+  opacity: 0; pointer-events: none; transition: opacity 0.05s;
+}
+.scan-flash.flash { opacity: 0.3; }
+</style>
+</head>
+<body>
+
+<div class="notify" id="notify"></div>
+
+<!-- ══ SCREEN: HOME ══ -->
+<div class="screen active" id="screen-home">
+  <div class="hdr">
+    <div>
+      <div class="hdr-logo">Order<span class="dot">.</span>Scan</div>
+    </div>
+    <button class="hdr-btn" onclick="showScreen('screen-manage')">⚙ Καταστήματα</button>
+  </div>
+  <div class="content">
+    <div class="hero">
+      <h1>Order<span class="dot">.</span>Scan</h1>
+      <p>Επίλεξε κατάστημα για να ξεκινήσεις</p>
+    </div>
+    <div class="pad" style="padding-top:0">
+      <div class="section-title">Καταστήματα</div>
+      <div class="store-grid" id="store-grid"></div>
+      <button class="btn btn-secondary" onclick="openAddStore()">＋ Νέο κατάστημα</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: SCAN ══ -->
+<div class="screen" id="screen-scan">
+  <div class="hdr">
+    <div>
+      <div class="hdr-logo">Order<span class="dot">.</span>Scan</div>
+      <div class="hdr-sub" id="scan-store-label">—</div>
+    </div>
+    <button class="hdr-btn" onclick="goHome()">✕ Έξοδος</button>
+  </div>
+
+  <!-- Camera -->
+  <div class="scan-wrap" id="scan-wrap">
+    <div id="scanner-container">
+      <div class="scan-flash" id="scan-flash"></div>
+      <div class="scan-ui">
+        <div class="scan-box">
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      <div class="scan-hint">Στόχευσε το barcode στο πλαίσιο</div>
+    </div>
+  </div>
+
+  <!-- Info bar -->
+  <div class="scan-info-bar">
+    <span class="sib-store" id="sib-store">—</span>
+    <span class="sib-count" id="sib-count">0 προϊόντα</span>
+  </div>
+
+  <!-- Order items -->
+  <div class="order-list" id="order-list">
+    <div class="order-empty">
+      <div class="oe-icon">📦</div>
+      <p>Σκανάρισε προϊόντα<br>για να ξεκινήσεις</p>
+    </div>
+  </div>
+
+  <!-- Bottom actions -->
+  <div class="scan-bottom">
+    <button class="btn btn-secondary btn-sm" onclick="openManualBarcode()">✎ Χειροκίνητο</button>
+    <button class="btn btn-primary" onclick="openOrderPreview()" style="flex:1">Αποστολή Παραγγελίας →</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: MANAGE STORES ══ -->
+<div class="screen" id="screen-manage">
+  <div class="hdr">
+    <div class="hdr-logo">Order<span class="dot">.</span>Scan</div>
+    <button class="hdr-btn" onclick="showScreen('screen-home')">← Πίσω</button>
+  </div>
+  <div class="content pad">
+    <div class="section-title">Διαχείριση Καταστημάτων</div>
+    <div id="manage-list"></div>
+    <div class="gap"></div>
+    <button class="btn btn-secondary" onclick="openAddStore()">＋ Νέο κατάστημα</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: QTY ══ -->
+<div class="modal-backdrop" id="modal-qty">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="qty-product-name">Προϊόν</div>
+    <div class="modal-sub" id="qty-product-code">—</div>
+    <div class="qty-display">
+      <div class="qty-big" id="qty-display">0</div>
+      <div class="qty-label">τεμάχια</div>
+    </div>
+    <div class="qty-pad">
+      <div class="qty-key" onclick="qtyKey('1')">1</div>
+      <div class="qty-key" onclick="qtyKey('2')">2</div>
+      <div class="qty-key" onclick="qtyKey('3')">3</div>
+      <div class="qty-key" onclick="qtyKey('4')">4</div>
+      <div class="qty-key" onclick="qtyKey('5')">5</div>
+      <div class="qty-key" onclick="qtyKey('6')">6</div>
+      <div class="qty-key" onclick="qtyKey('7')">7</div>
+      <div class="qty-key" onclick="qtyKey('8')">8</div>
+      <div class="qty-key" onclick="qtyKey('9')">9</div>
+      <div class="qty-key del" onclick="qtyKey('del')">⌫</div>
+      <div class="qty-key zero" onclick="qtyKey('0')">0</div>
+      <div class="qty-key" onclick="qtyKey('clear')" style="color:var(--warn);font-size:0.75rem">CLR</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeQtyModal()">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="confirmQty()">✓ Επιβεβαίωση</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: MANUAL BARCODE ══ -->
+<div class="modal-backdrop" id="modal-manual">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Χειροκίνητη Εισαγωγή</div>
+    <div class="modal-sub">Πληκτρολόγησε barcode ή κωδικό</div>
+    <div class="field">
+      <label>Barcode / Κωδικός</label>
+      <input type="text" id="manual-input" placeholder="π.χ. 5204719004761 ή 00476" inputmode="numeric" autocomplete="off">
+    </div>
+    <div id="manual-match" style="margin-bottom:14px;display:none">
+      <div style="background:var(--accent-light);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:0.85rem;font-weight:700" id="manual-match-name">—</div>
+        <div style="font-size:0.72rem;color:var(--text2);font-family:var(--mono);margin-top:3px" id="manual-match-code">—</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-manual')">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="confirmManual()">Επόμενο →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADD/EDIT STORE ══ -->
+<div class="modal-backdrop" id="modal-store">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="store-modal-title">Νέο Κατάστημα</div>
+    <div class="modal-sub">Συμπλήρωσε τα στοιχεία</div>
+    <div class="field">
+      <label>Όνομα καταστήματος *</label>
+      <input type="text" id="store-name-input" placeholder="π.χ. SUPER MARKET ΠΑΠΑΔΑΚΗ">
+    </div>
+    <div class="field">
+      <label>Email παραλήπτη</label>
+      <input type="email" id="store-email-input" placeholder="orders@example.com">
+    </div>
+    <div class="field">
+      <label>Διεύθυνση</label>
+      <input type="text" id="store-addr-input" placeholder="Οδός 123, Πόλη">
+    </div>
+    <div class="field">
+      <label>Τηλέφωνο</label>
+      <input type="text" id="store-phone-input" placeholder="2810 000000" inputmode="tel">
+    </div>
+    <div class="field">
+      <label>Σημειώσεις</label>
+      <textarea id="store-notes-input" placeholder="Ελεύθερο κείμενο..."></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-store')">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="saveStore()">Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ORDER PREVIEW ══ -->
+<div class="modal-backdrop" id="modal-order">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Παραγγελία Έτοιμη</div>
+    <div class="modal-sub" id="order-preview-store">—</div>
+    <div class="email-preview" id="order-preview-text"></div>
+    <div class="field">
+      <label>Email αποστολής σε</label>
+      <input type="email" id="order-email-input" placeholder="orders@example.com">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-order')">Πίσω</button>
+      <button class="btn btn-primary" onclick="sendOrder()">📧 Αποστολή</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ DATA ══
+const DB = {"products": {"5204719004761": {"code": "00476", "name": "ΔΙΚΤΑΜΟΣ ΒΙΟ CRETA BEAUTY 50GR"}, "5204719027791": {"code": "02779", "name": "ΣΕΤ ΜΑΡΜΕΛΑΔΕΣ ΧΑΡΤ 3Χ40ML CR.BE"}, "5204719505886": {"code": "50588", "name": "ΜΕΙΓΜΑ ΓΙΑ ΜΠΑΡΜΠΕΚΙΟΥ 60Γ CR.BE"}, "5204719018119": {"code": "01811", "name": "ΕΛΑΙΟΛΑΔΟ ΠΑΡ ΣΗΤ\"OLEA SECR\"1.5L"}, "5204719505916": {"code": "50591", "name": "ΜΕΙΓΜΑ ΓΙΑ ΨΑΡΙ 60Γ CR.BEAUTY"}, "5204719026213": {"code": "02621", "name": "ΧΑΛΒΑΣ ΣΟΚΟΛΑΤΑ 200ΓΡ CR.BEAUTY"}, "5204719505763": {"code": "50576", "name": "ΜΕΙΓΜΑ ΓΙΑ ΜΟΥΣΑΚΑ 60Γ CR.BEAUTY"}, "5204719505770": {"code": "50577", "name": "ΜΕΙΓΜΑ ΓΙΑ ΠΑΤΑΤΕΣ 60ΓΡ CR BEAUT"}, "5204719003825": {"code": "00382", "name": "ΜΙΧ ΜΠΑΧ GREEK SALAD 70ΓΡ CR.NET"}, "5204719004808": {"code": "00480", "name": "ΡΙΓΑΝΗ ΒΙΟ CRETA BEAUTY 80ΓΡ"}, "5204719505633": {"code": "50563", "name": "ΜΕΙΓΜΑ ΓΙΑ ΣΟΥΒΛΑΚΙ 60Γ CR.BEAUT"}, "5204719505909": {"code": "50590", "name": "ΜΕΙΓΜΑ ΓΙΑ ΚΟΤΟΠΟΥΛΟ 60Γ CR.BEAU"}, "5204719003894": {"code": "00389", "name": "MIX ΜΠΑΧ ΤΖΑΤΖΙΚΙ 180ΓΡ CRETA NE"}, "5204719004716": {"code": "00471", "name": "ΤΣΑΙ ΑΜΑΝΕΙΚΤ ΒΙΟ\"ΜΙΧ ΓΙΑΓΙΑ\"50Γ"}, "5204719004730": {"code": "00473", "name": "ΔΙΚΤΑΜΟΣ ΒΙΟ CRETA BEAUTY 50GR"}, "5204719017037": {"code": "01703", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΣΚΟΡΔΟ 250ML"}, "5204719017051": {"code": "01705", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΤΣΙΛΙ 250ΜL CR B"}, "5204719017068": {"code": "01706", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΒΑΣΙΛΙΚΟ 250ML CR B"}, "5204719017082": {"code": "01708", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΚΑΝΑΒΗ 250ML CR B"}, "5204719027609": {"code": "02760", "name": "ΣΕΤ ΜΕΛΙΑ ΧΑΡΤ 3Χ40ΓΡ CR.BEAUTY"}, "5204719177052": {"code": "17705", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ 400ΓΡ CR.BEAUTY"}, "5204719177090": {"code": "17709", "name": "ΕΛΙΕΣ ΠΙΚΑΝΤΙΚ ΠΡΑΣ 400Γ CR BEAU"}, "5204719178059": {"code": "17805", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ 250ΓΡ CR.BEAUTY"}, "5204719503516": {"code": "50351", "name": "ΣΕΤ ΤΕΛΑΡΑΚΙ ΜΙΚΡΟ CRETAN BEAUT"}, "5204719505602": {"code": "50560", "name": "ΜΕΙΓΜΑ ΓΙΑ ΣΑΛΑΤΑ 60ΓΡ CR.BEAUTY"}, "5204719505619": {"code": "50561", "name": "ΜΕΙΓΜΑ ΓΙΑ ΦΕΤΑ 60ΓΡ CR.BEAUTY"}, "5204719505626": {"code": "50562", "name": "ΜΕΙΓΜΑ ΓΙΑ ΤΖΑΤΖΙΚΙ 70Γ CR.BEAUT"}, "5204719505893": {"code": "50589", "name": "ΜΕΙΓΜΑ ΓΙΑ ΓΥΡΟ 60Γ CR.BEAUTY"}, "5204719018713": {"code": "01871", "name": "ΣΕΤ 3 ΑΡΩΜΑΤ ΕΛΑΙΟΛ ΧΑΡΤΙΝ 3Χ50M"}, "5204719169088": {"code": "16908", "name": "ΣΑΠ ΛΑΔΙ-ALOE ΚΡΗΤΗ 2T 200GR KRE "}, "5204719161662": {"code": "16166", "name": "ΣΑΠΟΥΝΙ ΕΛΑΙΟΛ ΗΦ ΛΑΒΑ125Γ CR BE"}, "5204719026237": {"code": "02623", "name": "ΧΑΛΒΑΣ ΑΜΥΓΔΑΛΟ 200ΓΡ CR.BEAUTY"}, "5204719018461": {"code": "01846", "name": "ΕΛΑΙΟΛΑΔΟ ΠΟΠ ΣΗΤΕΙΑ ΕΞ.Π.100ML"}, "5204719018430": {"code": "01843", "name": "ΕΛΑΙΟΛ-ΒΟΤΑΝΑ SONATA-ΚΑΝΑΤΑΚ 100"}, "5204719018423": {"code": "01842", "name": "ΕΛΑΙΟΛΑΔΟ ΠΑΡΘ ΣΗΤ ΞΥΛ ΠΩΜΑ 250M"}, "5204719011035": {"code": "01103", "name": "ΕΛΑΙΟΛΑΔΟ Ε.Π\"TERRA DIAS 0.2\"100"}, "5204719026114": {"code": "02611", "name": "ΜΠΑΚΛΑΒΑΣ ΜΕ ΣΟΚΟΛ&ΦΟΥΝ 240Γ C.B"}, "5204719277530": {"code": "27753", "name": "ΜΕΛΕΚΟΥΝΙ ΡΟΔΟΥ 60ΓΡ"}, "5204719004709": {"code": "00470", "name": "ΤΣΑΙ ΑΝΑΜΕΙΚ ΒΙΟ\"ΜΙΧ ΠΑΠΠΟΥ\"50ΓΡ"}, "5204719178097": {"code": "17809", "name": "ΕΛΙΕΣ ΠΡΑΣ ΠΙΚΑΝΤ 250Γ CR.BEAUTY"}, "5204719503240": {"code": "50324", "name": "ΣΕΤ ΚΑΦΑΣΑΚΙ ΜΙΚΡΟ CR.NET"}, "5204719503523": {"code": "50352", "name": "ΣΕΤ ΤΕΛΑΡΑΚΙ ΜΕΣΑΙΟ CRETAN BEAUT"}, "5204719503615": {"code": "50361", "name": "ΣΕΤ ΧΑΡΤ ΒΙΟΛ ΠΑΡΘ ΕΛΑΙΟΛ&ΜΠ&ΜΑΡ"}, "5204719018928": {"code": "01892", "name": "ΕΛΑΙΟΛΑΔΟ\"PURE\"ΕΞ.ΠΑΡΘ 250M CR B"}, "5204719018089": {"code": "01808", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.ΠΑΡΘΕΝΟ 1L CR.BEAUT"}, "5204719004723": {"code": "00472", "name": "ΤΣΑΙ ΒΟΥΝΟΥ ΒΙΟ CRETA BEAUTY 50G"}, "5204719015118": {"code": "01511", "name": "ΕΛΑΙΟΛ ΕΞΑΙΡ ΠΑΡΘ \"0.3\" 250M C.B"}, "5204719015132": {"code": "01513", "name": "ΕΛΑΙΟΛ ΕΞ.ΠΑΡΘ \"0.2\" 500ML CR.B"}, "5204719018355": {"code": "01835", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.Π ΠΟΠ ΣΗΤ HIGH750ML"}, "5204719018607": {"code": "01860", "name": "ΕΛΑΙΟΛΑΔΟ\"KANDEMILIS\"ΕΞ.ΠΑΡΘ1.5L"}, "5204719026299": {"code": "02629", "name": "ΜΙΞ ΧΑΛΒΑΣ-ΛΟΥΚΟΥΜ-ΜΠΑΚΛ CR.BEAU"}, "5204719161808": {"code": "16180", "name": "ΣΑΠΟΥΝΙ EX VIRG OLIV OIL100G C.B"}, "5204719163369": {"code": "16336", "name": "ΣΑΠΟΥΝΙ ΕΛΑΙΟΛΑΔΟΥ 100ΓΡ CR B"}, "5204719177069": {"code": "17706", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ&ΚΑΛΑΜ 400ΓΡCR BEA"}, "5204719177106": {"code": "17710", "name": "ΕΛΙΕΣ ΚΑΛΑΜΩΝ 400ΓΡ CR BEAUTY"}, "5204719276519": {"code": "27651", "name": "ΜΑΝΤΟΛΑΤΟ ΑΝΑΜ PET 260ΓΡ CR.BEAU"}, "5204719276991": {"code": "27699", "name": "ΜΑΝΤΟΛΑΤΟ ΔΙΑΦ ΓΕΥΣ 70ΓΡ CR.BEAU"}, "5204719504001": {"code": "50400", "name": "ΜΕΙΓΜΑ ΜΠΑΧΑΡΙΚΩΝ CR BEAUTY 3X50"}, "5204719011844": {"code": "01184", "name": "ΕΛΑΙΟΛΑΔΟ ΠΟΠ ΣΗΤΕΙΑ TIN ΕΞ.Π.1L"}, "5204719018102": {"code": "01810", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.Π.ΠΟΠ ΣΗΤ.Γ.250ML πωμα ελιας"}, "5204719018126": {"code": "01812", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.ΠΑΡΘΕΝΟ AGRELI 750M"}, "5204719018539": {"code": "01853", "name": "ΕΛΑΙΟΛΑΔΟ ΠΟΠ ΣΗΤΕΙΑ ΕΞ.Π.500ML"}, "5204719018546": {"code": "01854", "name": "ΕΛΑΙΟΛΑΔΟ\"PURE\"ΕΞ.ΠΑΡΘ 750M CR Β"}, "5204719018560": {"code": "01856", "name": "ΕΛΑΙΟΛΑΔΟ \"PURE\"P.D.O ΣΗΤΕΙΑ 750"}, "5204719018669": {"code": "01866", "name": "ΕΛΑΙΟΛΑΔΟ ΠΑΡΘ ΣΗΤ ΞΥΛ ΠΩΜΑ 500Μ"}, "5204719018942": {"code": "01894", "name": "ΕΛΑΙΟΛΑΔΟ\"PURE\"ΕΞ.ΠΑΡΘ 500M CR B"}, "5204719026008": {"code": "02600", "name": "ΜΙΧ ΣΙΡΟΠΙΑΣΤΩΝ 4ΤΜΧ CR.BEAUTY"}, "5204719170015": {"code": "17001", "name": "ΣΕΤ ΕΛΙΕΣ 3Χ150ΓΡ CR.BEAUTY"}, "5204719177120": {"code": "17712", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ ΒΟΤΑΝΑ 400ΓΡ CR.B"}, "5204719178066": {"code": "17806", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ&ΚΑΛΑΜΩΝ 250Γ CR.B"}, "5204719178103": {"code": "17810", "name": "ΕΛΙΕΣ ΚΑΛΑΜΩΝ 250ΓΡ CR.BEAUTY"}, "5204719502168": {"code": "50216", "name": "ΚΑΡΑΜΕΛΕΣ 150ΓΡ ΔΙΑΦΟΡΕΣ ΓΕΥΣΕΙΣ"}, "5204719503448": {"code": "50344", "name": "ΣΕΤ ΧΑΡΤ ΟΥΖΟ 60Μ ΡΑΚΙ-ΠΑΤΕ-ΜΕΛΙ"}, "5204719503608": {"code": "50360", "name": "ΣΕΤ ΧΑΡΤΙΝ ΛΑΔΙ 2Χ60ML&ΠΑΤΕ&ΜΑΡΜ"}, "5204719504599": {"code": "50459", "name": "ΠΙΠΕΡΙΑ ΑΝΑΜΕΙΚΤΑ ΣΑΚ 80Γ CR BEA"}, "5204719505497": {"code": "50549", "name": "ΠΙΠΕΡΙΑ ΑΝΑΜΕΙΚΤΑ ΜΥΛ80Γ CR BEAU"}, "5204719504537": {"code": "50453", "name": "ΑΝΘΟΣ ΘΑΛΑΣΣΙΝΟΥ ΑΛΑΤΙΟΥ ΣΑΚ200Γ"}, "5204719505473": {"code": "50547", "name": "ΑΝΘΟΣ ΑΛΑΤΙΟΥ ΘΑΛΑΣ ΜΥΛ200Γ CR B"}}, "stores": [{"name": "ΜΕΙΓΜΑ ΕΠΙΜΕΝΙΔΟΥ", "products": ["5204719018119", "5204719004716", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719178059", "5204719503516", "5204719505619", "5204719018713", "5204719169088", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΙΕΡΑΠΕΤΡΑ", "products": ["5204719505763", "5204719505770", "5204719505633", "5204719003894", "5204719004716", "5204719004730", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΙΚΑΡΟΥ", "products": ["5204719004723", "5204719015118", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΚΟΡΩΝΑΙΟΥ", "products": ["5204719004761", "5204719004808", "5204719003894", "5204719004716", "5204719004730", "5204719017037", "5204719017068", "5204719505602", "5204719505626", "5204719169088", "5204719161662", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608", "5204719504599", "5204719505497", "5204719504537", "5204719505473"]}, {"name": "ΜΕΙΓΜΑ ΜΑΛΙΑ ΧΕΡΣΟΝΗΣΟΣ", "products": ["5204719004761", "5204719027791", "5204719505886", "5204719018119", "5204719505916", "5204719026213", "5204719505763", "5204719505770", "5204719003825", "5204719004808", "5204719505633", "5204719505909", "5204719003894", "5204719004716", "5204719004730", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719503516", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018713", "5204719169088", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608", "5204719504599", "5204719505497", "5204719504537", "5204719505473"]}, {"name": "ΜΕΙΓΜΑ ΜΑΥΣΩΛΟΥ-ΠΑΡΑΛΙΑΚΗ", "products": ["5204719004730", "5204719503516", "5204719018713", "5204719004709", "5204719503240", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΠΑΛΑΙΟΛΟΓΟΥ", "products": ["5204719503516", "5204719026237", "5204719018461", "5204719277530", "5204719178097", "5204719503523", "5204719503615", "5204719018928", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΡΕΘΥΜΝΟ", "products": ["5204719026213", "5204719505633", "5204719004716", "5204719004730", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719503516", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018713", "5204719169088", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΣΗΤΕΙΑ", "products": ["5204719026213", "5204719017037", "5204719017051", "5204719017068", "5204719505893", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΤΥΜΠΑΚΙ", "products": ["5204719004716", "5204719004730", "5204719177090", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΧΑΝΙΑ", "products": ["5204719003825", "5204719004808", "5204719505909", "5204719003894", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719169088", "5204719161662", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"]}, {"name": "ΜΕΙΓΜΑ ΚΟΚΚΙΝΗ", "products": ["5204719505916", "5204719505763", "5204719505770", "5204719505633", "5204719505909", "5204719003894", "5204719004716", "5204719004730", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719503516", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018713", "5204719169088", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608", "5204719504599", "5204719505497", "5204719504537", "5204719505473"]}]};
+
+// ══ STATE ══
+let state = {
+  currentStore: null,
+  order: {},      // barcode -> qty
+  editingStoreId: null,
+  qtyBarcode: null,
+  qtyTemp: '',
+  stores: [],     // user-added / modified stores
+};
+
+// ══ INIT ══
+function init() {
+  const saved = localStorage.getItem('orderscan_stores');
+  if (saved) {
+    state.stores = JSON.parse(saved);
+  } else {
+    // Pre-populate from DB stores (built-in)
+    state.stores = DB.stores.map((s, i) => ({
+      id: 'builtin_' + i,
+      name: s.name,
+      email: '',
+      address: '',
+      phone: '',
+      notes: '',
+      builtin: true,
+      builtinIdx: i,
+    }));
+    saveStoresToLS();
+  }
+  renderHomeStores();
+}
+
+function saveStoresToLS() {
+  localStorage.setItem('orderscan_stores', JSON.stringify(state.stores));
+}
+
+// ══ SCREEN NAV ══
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function goHome() {
+  stopScanner();
+  state.currentStore = null;
+  state.order = {};
+  showScreen('screen-home');
+  renderHomeStores();
+}
+
+// ══ HOME ══
+function renderHomeStores() {
+  const grid = document.getElementById('store-grid');
+  const icons = ['🏪','🛒','🏬','🏢','🏡','🏨','🛍️','🏭','🏤','🏦','🍽️','🏪'];
+  grid.innerHTML = state.stores.map((s, i) => {
+    const count = getStoreProductCount(s);
+    return `<div class="store-card" onclick="startSession(${i})">
+      <div class="sc-icon">${icons[i % icons.length]}</div>
+      <div class="sc-name">${s.name}</div>
+      <div class="sc-count">${count} προϊόντα</div>
+    </div>`;
+  }).join('');
+}
+
+function getStoreProductCount(store) {
+  if (store.builtin && store.builtinIdx !== undefined) {
+    return DB.stores[store.builtinIdx]?.products?.length || 0;
+  }
+  return Object.keys(DB.products).length; // custom store: all products
+}
+
+function getStoreProducts(store) {
+  if (store.builtin && store.builtinIdx !== undefined) {
+    return DB.stores[store.builtinIdx]?.products || [];
+  }
+  return Object.keys(DB.products); // custom: all
+}
+
+// ══ SESSION ══
+function startSession(storeIdx) {
+  state.currentStore = state.stores[storeIdx];
+  state.order = {};
+  document.getElementById('scan-store-label').textContent = state.currentStore.name;
+  document.getElementById('sib-store').textContent = state.currentStore.name;
+  updateOrderUI();
+  showScreen('screen-scan');
+  startScanner();
+}
+
+// ══ SCANNER ══
+let scannerRunning = false;
+let lastScan = '';
+let lastScanTime = 0;
+
+function startScanner() {
+  if (scannerRunning) return;
+  const container = document.getElementById('scanner-container');
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: container,
+      constraints: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    },
+    locator: { patchSize: 'medium', halfSample: true },
+    numOfWorkers: 2,
+    frequency: 10,
+    decoder: { readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'code_39_reader'] },
+    locate: true,
+  }, function(err) {
+    if (err) {
+      notify('Σφάλμα κάμερας: ' + err.message, 'error');
+      return;
+    }
+    Quagga.start();
+    scannerRunning = true;
+  });
+
+  Quagga.onDetected(function(result) {
+    const code = result.codeResult.code;
+    const now = Date.now();
+    if (code === lastScan && now - lastScanTime < 2000) return;
+    lastScan = code;
+    lastScanTime = now;
+    flashEffect();
+    handleScan(code);
+  });
+}
+
+function stopScanner() {
+  if (!scannerRunning) return;
+  Quagga.stop();
+  scannerRunning = false;
+  lastScan = '';
+}
+
+function flashEffect() {
+  const el = document.getElementById('scan-flash');
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 120);
+}
+
+function handleScan(barcode) {
+  // Try exact barcode match
+  let product = DB.products[barcode];
+  let matchedBarcode = barcode;
+
+  // Try trimmed / without leading zeros
+  if (!product) {
+    const trimmed = barcode.replace(/^0+/, '');
+    for (const [bc, p] of Object.entries(DB.products)) {
+      if (bc === trimmed || bc.replace(/^0+/, '') === trimmed) {
+        product = p;
+        matchedBarcode = bc;
+        break;
+      }
+    }
+  }
+
+  if (!product) {
+    notify('Άγνωστο barcode: ' + barcode, 'error');
+    return;
+  }
+
+  // Check if in store's product list (warning only)
+  const storeProducts = getStoreProducts(state.currentStore);
+  const inStore = storeProducts.includes(matchedBarcode);
+  if (!inStore) {
+    notify('⚠ Εκτός λίστας καταστήματος', 'error');
+    // Still allow adding
+  }
+
+  openQtyModal(matchedBarcode, product);
+}
+
+// ══ QTY MODAL ══
+function openQtyModal(barcode, product) {
+  state.qtyBarcode = barcode;
+  const existing = state.order[barcode] || 0;
+  state.qtyTemp = existing > 0 ? String(existing) : '';
+  document.getElementById('qty-product-name').textContent = product.name;
+  document.getElementById('qty-product-code').textContent = product.code + ' · ' + barcode;
+  updateQtyDisplay();
+  openModal('modal-qty');
+}
+
+function qtyKey(k) {
+  if (k === 'del') {
+    state.qtyTemp = state.qtyTemp.slice(0, -1);
+  } else if (k === 'clear') {
+    state.qtyTemp = '';
+  } else {
+    if (state.qtyTemp.length >= 4) return;
+    state.qtyTemp += k;
+  }
+  updateQtyDisplay();
+}
+
+function updateQtyDisplay() {
+  document.getElementById('qty-display').textContent = state.qtyTemp || '0';
+}
+
+function confirmQty() {
+  const qty = parseInt(state.qtyTemp) || 0;
+  if (qty === 0) {
+    delete state.order[state.qtyBarcode];
+  } else {
+    state.order[state.qtyBarcode] = qty;
+  }
+  closeModal('modal-qty');
+  updateOrderUI();
+  notify('✓ ' + DB.products[state.qtyBarcode]?.name?.substring(0,25) + ' × ' + qty, 'success');
+}
+
+function closeQtyModal() {
+  closeModal('modal-qty');
+}
+
+// ══ ORDER UI ══
+function updateOrderUI() {
+  const list = document.getElementById('order-list');
+  const items = Object.entries(state.order);
+  const count = items.reduce((s, [,q]) => s + q, 0);
+  document.getElementById('sib-count').textContent = items.length + ' προϊόντα · ' + count + ' τεμ.';
+
+  if (items.length === 0) {
+    list.innerHTML = `<div class="order-empty"><div class="oe-icon">📦</div><p>Σκανάρισε προϊόντα<br>για να ξεκινήσεις</p></div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(([bc, qty]) => {
+    const p = DB.products[bc] || {name: bc, code: '—'};
+    return `<div class="order-item">
+      <div class="oi-info">
+        <div class="oi-name">${p.name}</div>
+        <div class="oi-code">${p.code} · ${bc}</div>
+      </div>
+      <div class="oi-qty">
+        <button class="oi-qty-btn" onclick="changeQty('${bc}',-1)">−</button>
+        <div class="oi-qty-val">${qty}</div>
+        <button class="oi-qty-btn" onclick="changeQty('${bc}',1)">＋</button>
+      </div>
+      <button class="oi-del" onclick="removeItem('${bc}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function changeQty(bc, delta) {
+  const current = state.order[bc] || 0;
+  const newQty = Math.max(0, current + delta);
+  if (newQty === 0) {
+    delete state.order[bc];
+  } else {
+    state.order[bc] = newQty;
+  }
+  updateOrderUI();
+}
+
+function removeItem(bc) {
+  delete state.order[bc];
+  updateOrderUI();
+}
+
+// ══ MANUAL BARCODE ══
+function openManualBarcode() {
+  document.getElementById('manual-input').value = '';
+  document.getElementById('manual-match').style.display = 'none';
+  openModal('modal-manual');
+  setTimeout(() => document.getElementById('manual-input').focus(), 300);
+}
+
+document.getElementById('manual-input').addEventListener('input', function() {
+  const val = this.value.trim();
+  let found = null;
+  let foundBc = null;
+
+  // Try barcode
+  if (DB.products[val]) { found = DB.products[val]; foundBc = val; }
+  // Try code
+  if (!found) {
+    for (const [bc, p] of Object.entries(DB.products)) {
+      if (p.code === val || p.code === val.padStart(5,'0')) {
+        found = p; foundBc = bc; break;
+      }
+    }
+  }
+
+  const matchEl = document.getElementById('manual-match');
+  if (found) {
+    document.getElementById('manual-match-name').textContent = found.name;
+    document.getElementById('manual-match-code').textContent = found.code + ' · ' + foundBc;
+    matchEl.dataset.bc = foundBc;
+    matchEl.style.display = 'block';
+  } else {
+    matchEl.style.display = 'none';
+  }
+});
+
+function confirmManual() {
+  const matchEl = document.getElementById('manual-match');
+  const val = document.getElementById('manual-input').value.trim();
+
+  let bc = matchEl.dataset.bc;
+  if (!bc && DB.products[val]) bc = val;
+
+  if (!bc) {
+    notify('Δεν βρέθηκε προϊόν', 'error');
+    return;
+  }
+
+  closeModal('modal-manual');
+  openQtyModal(bc, DB.products[bc]);
+}
+
+// ══ ORDER PREVIEW ══
+function openOrderPreview() {
+  const items = Object.entries(state.order);
+  if (items.length === 0) {
+    notify('Δεν έχεις σκανάρει τίποτα', 'error');
+    return;
+  }
+
+  const store = state.currentStore;
+  const date = new Date().toLocaleDateString('el-GR', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const time = new Date().toLocaleTimeString('el-GR', {hour:'2-digit',minute:'2-digit'});
+
+  let lines = [];
+  lines.push('ΠΑΡΑΓΓΕΛΙΑ - ' + date + ' ' + time);
+  lines.push('Κατάστημα: ' + store.name);
+  if (store.address) lines.push('Διεύθυνση: ' + store.address);
+  lines.push('─────────────────────────');
+  lines.push('ΚΩΔ.      BARCODE         ΠΕΡΙΓΡΑΦΗ                    ΤΕΜ.');
+  lines.push('─────────────────────────');
+
+  let total = 0;
+  items.forEach(([bc, qty]) => {
+    const p = DB.products[bc] || {name: bc, code: '—'};
+    const code = p.code.padEnd(9);
+    const barcode = bc.padEnd(16);
+    const name = p.name.substring(0,28).padEnd(29);
+    lines.push(`${code} ${barcode} ${name} ${qty}`);
+    total += qty;
+  });
+
+  lines.push('─────────────────────────');
+  lines.push(`ΣΥΝΟΛΟ: ${items.length} είδη · ${total} τεμάχια`);
+  if (store.notes) lines.push('\nΣΗΜ: ' + store.notes);
+
+  const text = lines.join('\n');
+  document.getElementById('order-preview-store').textContent = store.name;
+  document.getElementById('order-preview-text').textContent = text;
+  document.getElementById('order-email-input').value = store.email || '';
+  openModal('modal-order');
+}
+
+function sendOrder() {
+  const email = document.getElementById('order-email-input').value.trim();
+  const text = document.getElementById('order-preview-text').textContent;
+  const store = state.currentStore;
+  const date = new Date().toLocaleDateString('el-GR');
+
+  const subject = encodeURIComponent('Παραγγελία ' + store.name + ' - ' + date);
+  const body = encodeURIComponent(text);
+
+  let mailto = 'mailto:';
+  if (email) mailto += email;
+  mailto += '?subject=' + subject + '&body=' + body;
+
+  window.location.href = mailto;
+  closeModal('modal-order');
+  notify('Άνοιγμα email app...', 'success');
+}
+
+// ══ STORE MANAGEMENT ══
+function renderManageList() {
+  const list = document.getElementById('manage-list');
+  if (state.stores.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:0.85rem;text-align:center;padding:30px 0">Δεν υπάρχουν καταστήματα</p>';
+    return;
+  }
+  list.innerHTML = state.stores.map((s, i) => `
+    <div class="store-list-item">
+      <div class="sli-info">
+        <div class="sli-name">${s.name}</div>
+        <div class="sli-email">${s.email || 'Χωρίς email'}</div>
+        <div class="sli-count">${getStoreProductCount(s)} προϊόντα</div>
+      </div>
+      <div class="sli-actions">
+        <button class="sli-btn" onclick="openEditStore(${i})" title="Επεξεργασία">✎</button>
+        <button class="sli-btn" onclick="deleteStore(${i})" title="Διαγραφή" style="color:var(--warn)">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Intercept manage screen
+const origShowScreen = showScreen;
+window.showScreen = function(id) {
+  origShowScreen(id);
+  if (id === 'screen-manage') renderManageList();
+};
+
+function openAddStore() {
+  state.editingStoreId = null;
+  document.getElementById('store-modal-title').textContent = 'Νέο Κατάστημα';
+  ['store-name-input','store-email-input','store-addr-input','store-phone-input','store-notes-input']
+    .forEach(id => document.getElementById(id).value = '');
+  closeModal('modal-order');
+  openModal('modal-store');
+}
+
+function openEditStore(idx) {
+  state.editingStoreId = idx;
+  const s = state.stores[idx];
+  document.getElementById('store-modal-title').textContent = 'Επεξεργασία';
+  document.getElementById('store-name-input').value = s.name;
+  document.getElementById('store-email-input').value = s.email || '';
+  document.getElementById('store-addr-input').value = s.address || '';
+  document.getElementById('store-phone-input').value = s.phone || '';
+  document.getElementById('store-notes-input').value = s.notes || '';
+  openModal('modal-store');
+}
+
+function saveStore() {
+  const name = document.getElementById('store-name-input').value.trim();
+  if (!name) { notify('Βάλε όνομα καταστήματος', 'error'); return; }
+
+  const data = {
+    name,
+    email: document.getElementById('store-email-input').value.trim(),
+    address: document.getElementById('store-addr-input').value.trim(),
+    phone: document.getElementById('store-phone-input').value.trim(),
+    notes: document.getElementById('store-notes-input').value.trim(),
+  };
+
+  if (state.editingStoreId !== null) {
+    const existing = state.stores[state.editingStoreId];
+    state.stores[state.editingStoreId] = { ...existing, ...data };
+    notify('Αποθηκεύτηκε', 'success');
+  } else {
+    state.stores.push({ ...data, id: 'custom_' + Date.now(), builtin: false });
+    notify('Κατάστημα προστέθηκε', 'success');
+  }
+
+  saveStoresToLS();
+  closeModal('modal-store');
+  renderHomeStores();
+  renderManageList();
+}
+
+function deleteStore(idx) {
+  if (!confirm('Διαγραφή καταστήματος "' + state.stores[idx].name + '";')) return;
+  state.stores.splice(idx, 1);
+  saveStoresToLS();
+  renderManageList();
+  renderHomeStores();
+}
+
+// ══ MODALS ══
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-backdrop').forEach(el => {
+  el.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+});
+
+// ══ NOTIFY ══
+let notifyTimer;
+function notify(msg, type='info') {
+  const el = document.getElementById('notify');
+  el.textContent = msg;
+  el.className = 'notify show ' + type;
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ══ START ══
+init();
+</script>
+</body>
+</html>
