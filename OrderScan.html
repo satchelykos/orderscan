@@ -286,7 +286,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100d
     <div class="field"><label>Barcode *</label><input type="text" id="pr-barcode" placeholder="5204719004761" inputmode="numeric"></div>
     <div class="field"><label>Κωδικός</label><input type="text" id="pr-code" placeholder="00476"></div>
     <div class="field"><label>Περιγραφή *</label><input type="text" id="pr-name" placeholder="ΕΛΑΙΟΛΑΔΟ 1.5L"></div>
-    <div class="field"><label>Τμήμα</label><select id="pr-section" style="width:100%;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.88rem;outline:none"><option value="">— Αυτόματο —</option><option value="elaiolado">🫒 Ελαιόλαδο</option><option value="elies">🍈 Ελιές</option><option value="mpaxarika">🌿 Μπαχαρικά / Βότανα / Σετ Δώρου</option><option value="metapoiisi">🏭 Μεταποίηση / Γλυκά / Σαπούνι</option></select></div>
+    <div class="field"><label>Τμήμα</label><select id="pr-section" style="width:100%;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.88rem;outline:none"><option value="">— Αυτόματο —</option><option value="elaiolado">🫒 Ελαιόλαδο</option><option value="elies">🍈 Ελιές</option><option value="mpaxarika">🌿 Μπαχαρικά / Βότανα / Σετ Δώρου</option><option value="metapoiisi">🏭 Συσκευασία / Γλυκά / Σαπούνι</option></select></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('m-product')">Ακύρωση</button>
       <button class="btn btn-primary" onclick="saveProduct()">Αποθήκευση</button>
@@ -538,7 +538,7 @@ function confirmManual() {
 
 // ── ORDER PREVIEW ──
 // ── SECTION LOGIC ──
-var SECS={elaiolado:{l:'ΕΛΑΙΟΛΑΔΟ',i:'🫒'},elies:{l:'ΕΛΙΕΣ',i:'🍈'},mpaxarika:{l:'ΜΠΑΧΑΡΙΚΑ/ΒΟΤΑΝΑ/ΣΕΤ',i:'🌿'},metapoiisi:{l:'ΜΕΤΑΠΟΙΗΣΗ/ΓΛΥΚΑ/ΣΑΠΟΥΝΙ',i:'🏭'}};
+var SECS={elaiolado:{l:'ΕΛΑΙΟΛΑΔΟ',i:'🫒'},elies:{l:'ΕΛΙΕΣ',i:'🍈'},mpaxarika:{l:'ΜΠΑΧΑΡΙΚΑ/ΒΟΤΑΝΑ/ΣΕΤ',i:'🌿'},metapoiisi:{l:'ΣΥΣΚΕΥΑΣΙΑ/ΓΛΥΚΑ/ΣΑΠΟΥΝΙ',i:'🏭'}};
 function detectSec(n){n=(n||'').toUpperCase();if(/ΕΛΑΙΟΛΑΔ|OLIVE OIL/.test(n)&&!/ΣΑΠΟΥΝ/.test(n))return'elaiolado';if(/ΕΛΙΕ|ΚΑΛΑΜΩΝ|ΠΡΑΣΙΝ|ΠΙΚΑΝΤ/.test(n))return'elies';if(/ΣΑΠΟΥΝ|ΧΑΛΒ|ΜΠΑΚΛ|ΜΑΝΤΟΛ|ΜΕΛΕΚ|ΚΑΡΑΜ|ΛΟΥΚ|ΣΙΡΟΠ/.test(n))return'metapoiisi';if(/ΜΠΑΧΑΡ|ΒΟΤΑΝ|ΡΙΓΑΝΗ|ΔΙΚΤΑΜ|ΤΣΑΙ|ΣΕΤ|ΜΕΙΓΜΑ|ΠΙΠΕΡ|ΑΛΑΤ|MIX/.test(n))return'mpaxarika';return'';}
 function getProdSec(bc,p){var c=getCustomProds();if(c[bc]&&c[bc].section)return c[bc].section;return detectSec((p||{}).name||'');}
 function getSecEmails(){try{return JSON.parse(localStorage.getItem('os_se')||'{}');}catch(e){return{};}}
