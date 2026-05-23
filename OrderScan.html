@@ -286,6 +286,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100d
     <div class="field"><label>Barcode *</label><input type="text" id="pr-barcode" placeholder="5204719004761" inputmode="numeric"></div>
     <div class="field"><label>Κωδικός</label><input type="text" id="pr-code" placeholder="00476"></div>
     <div class="field"><label>Περιγραφή *</label><input type="text" id="pr-name" placeholder="ΕΛΑΙΟΛΑΔΟ 1.5L"></div>
+    <div class="field"><label>Τμήμα</label><select id="pr-section" style="width:100%;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.88rem;outline:none"><option value="">— Αυτόματο —</option><option value="elaiolado">🫒 Ελαιόλαδο</option><option value="elies">🍈 Ελιές</option><option value="mpaxarika">🌿 Μπαχαρικά / Βότανα / Σετ Δώρου</option><option value="metapoiisi">🏭 Μεταποίηση / Γλυκά / Σαπούνι</option></select></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('m-product')">Ακύρωση</button>
       <button class="btn btn-primary" onclick="saveProduct()">Αποθήκευση</button>
@@ -293,19 +294,10 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100d
   </div>
 </div>
 
-<!-- MODAL: ORDER PREVIEW -->
+<!-- MODAL: ORDER SEND -->
 <div class="modal-bg" id="m-order">
-  <div class="modal">
+  <div class="modal" id="m-order-inner" style="max-height:90vh;overflow-y:auto">
     <div class="modal-handle"></div>
-    <div class="modal-title">Παραγγελία Έτοιμη</div>
-    <div class="modal-sub" id="order-store-lbl"></div>
-    <div class="email-pre" id="order-preview"></div>
-    <div class="field"><label>Email αποστολής</label><input type="email" id="order-email" placeholder="orders@example.com"></div>
-    <div class="field"><label>Σημείωση</label><textarea id="order-note" placeholder="π.χ. Παράδοση Παρασκευή..."></textarea></div>
-    <div class="btn-row">
-      <button class="btn btn-secondary" onclick="closeModal('m-order')">Πίσω</button>
-      <button class="btn btn-primary" onclick="sendOrder()">📧 Αποστολή</button>
-    </div>
   </div>
 </div>
 
@@ -545,39 +537,63 @@ function confirmManual() {
 }
 
 // ── ORDER PREVIEW ──
-function openPreview() {
-  var items = Object.entries(order);
-  if (items.length === 0) { notify('Δεν έχεις σκανάρει τίποτα', 'err'); return; }
-  var prods = allProds();
-  var date = new Date().toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  var time = new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
-  var lines = ['ΠΑΡΑΓΓΕΛΙΑ - ' + date + ' ' + time, 'Κατάστημα: ' + currentStore.name, '─────────────────────────'];
-  var total = 0;
-  items.forEach(function(x) {
-    var p = prods[x[0]] || {name:x[0],code:'—'};
-    lines.push(p.code + ' | ' + x[0] + ' | ' + p.name + ' | ΤΕΜ: ' + x[1]);
-    total += x[1];
+// ── SECTION LOGIC ──
+var SECS={elaiolado:{l:'ΕΛΑΙΟΛΑΔΟ',i:'🫒'},elies:{l:'ΕΛΙΕΣ',i:'🍈'},mpaxarika:{l:'ΜΠΑΧΑΡΙΚΑ/ΒΟΤΑΝΑ/ΣΕΤ',i:'🌿'},metapoiisi:{l:'ΜΕΤΑΠΟΙΗΣΗ/ΓΛΥΚΑ/ΣΑΠΟΥΝΙ',i:'🏭'}};
+function detectSec(n){n=(n||'').toUpperCase();if(/ΕΛΑΙΟΛΑΔ|OLIVE OIL/.test(n)&&!/ΣΑΠΟΥΝ/.test(n))return'elaiolado';if(/ΕΛΙΕ|ΚΑΛΑΜΩΝ|ΠΡΑΣΙΝ|ΠΙΚΑΝΤ/.test(n))return'elies';if(/ΣΑΠΟΥΝ|ΧΑΛΒ|ΜΠΑΚΛ|ΜΑΝΤΟΛ|ΜΕΛΕΚ|ΚΑΡΑΜ|ΛΟΥΚ|ΣΙΡΟΠ/.test(n))return'metapoiisi';if(/ΜΠΑΧΑΡ|ΒΟΤΑΝ|ΡΙΓΑΝΗ|ΔΙΚΤΑΜ|ΤΣΑΙ|ΣΕΤ|ΜΕΙΓΜΑ|ΠΙΠΕΡ|ΑΛΑΤ|MIX/.test(n))return'mpaxarika';return'';}
+function getProdSec(bc,p){var c=getCustomProds();if(c[bc]&&c[bc].section)return c[bc].section;return detectSec((p||{}).name||'');}
+function getSecEmails(){try{return JSON.parse(localStorage.getItem('os_se')||'{}');}catch(e){return{};}}
+function saveSecEmails(d){localStorage.setItem('os_se',JSON.stringify(d));}
+var pendEM=[];
+function openPreview(){
+  var items=Object.entries(order);
+  if(!items.length){notify('Δεν έχεις σκανάρει τίποτα','err');return;}
+  var prods=allProds();
+  var date=new Date().toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var time=new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+  var stored=getSecEmails();
+  var groups={},noSec=[];
+  items.forEach(function(x){
+    var bc=x[0],qty=x[1],p=prods[bc]||{name:bc,code:'--'};
+    var sec=getProdSec(bc,p);
+    if(sec){if(!groups[sec])groups[sec]=[];groups[sec].push({bc:bc,qty:qty,p:p});}
+    else noSec.push({bc:bc,qty:qty,p:p});
   });
-  lines.push('─────────────────────────');
-  lines.push('ΣΥΝΟΛΟ: ' + items.length + ' είδη · ' + total + ' τεμάχια');
-  document.getElementById('order-store-lbl').textContent = currentStore.name;
-  document.getElementById('order-preview').textContent = lines.join('\n');
-  document.getElementById('order-email').value = currentStore.email || 'info.olivesecret@gmail.com';
-  document.getElementById('order-note').value = '';
+  var totalQty=items.reduce(function(s,x){return s+x[1];},0);
+  var sub='Παραγγελία '+currentStore.name+' - '+date;
+  pendEM=[];
+  Object.keys(groups).forEach(function(sec){
+    var s=SECS[sec];
+    var body=s.i+' '+s.l+'\nΚατάστημα: '+currentStore.name+'\n'+date+' '+time+'\n'+'-'.repeat(28)+'\n';
+    var tot=0;
+    groups[sec].forEach(function(it){body+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';tot+=it.qty;});
+    body+='-'.repeat(28)+'\nΣΥΝΟΛΟ: '+groups[sec].length+' ειδη / '+tot+' τεμ.';
+    pendEM.push({sec:sec,lbl:s.i+' '+s.l,email:stored[sec]||'',sub:sub+' ['+s.l+']',body:body});
+  });
+  var bk='BACKUP - '+currentStore.name+'\n'+date+' '+time+'\n'+'='.repeat(28)+'\n';
+  Object.keys(groups).forEach(function(sec){var s=SECS[sec];bk+='\n'+s.i+' '+s.l+'\n';groups[sec].forEach(function(it){bk+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';});});
+  if(noSec.length){bk+='\nCHWRIS TMHMA\n';noSec.forEach(function(it){bk+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';});}
+  bk+='='.repeat(28)+'\nΣΥΝΟΛΟ: '+items.length+' ειδη / '+totalQty+' τεμ.';
+  pendEM.push({sec:'bk',lbl:'📋 Backup',email:stored['bk']||'info.olivesecret@gmail.com',sub:sub+' [BACKUP]',body:bk});
+  var html='<div class="modal-handle"></div><div class="modal-title">📧 Αποστολή</div><div class="modal-sub">'+currentStore.name+' · '+date+'</div><div style="margin:12px 0;max-height:50vh;overflow-y:auto">';
+  pendEM.forEach(function(em,i){
+    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">';
+    html+='<div style="font-size:0.82rem;font-weight:700;margin-bottom:8px">'+em.lbl+'</div>';
+    html+='<div style="display:flex;gap:6px"><input type="email" id="pem'+i+'" value="'+em.email+'" placeholder="email@..." style="flex:1;padding:9px 11px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.82rem;outline:none">';
+    html+='<button onclick="svEM('+i+')" style="padding:9px 12px;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t2);font-size:0.75rem;font-weight:700;cursor:pointer">💾</button></div></div>';
+  });
+  html+='</div><div class="field"><label>Σημείωση</label><textarea id="ord-note" placeholder="π.χ. Παράδοση Παρασκευή..." style="width:100%;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.85rem;outline:none;resize:none;height:56px"></textarea></div>';
+  html+='<div class="btn-row"><button class="btn btn-secondary" onclick="closeModal(\'m-order\')">Πίσω</button><button class="btn btn-primary" onclick="sendEM()">📧 Αποστολή Όλων</button></div>';
+  document.getElementById('m-order-inner').innerHTML=html;
   openModal('m-order');
 }
-
-function sendOrder() {
-  var email = document.getElementById('order-email').value.trim();
-  var note = document.getElementById('order-note').value.trim();
-  var text = document.getElementById('order-preview').textContent;
-  if (note) text += '\n\nΣΗΜΕΙΩΣΗ: ' + note;
-  var date = new Date().toLocaleDateString('el-GR');
-  var subject = encodeURIComponent('Παραγγελία ' + currentStore.name + ' - ' + date);
-  var body = encodeURIComponent(text);
-  window.location.href = 'mailto:' + (email||'') + '?subject=' + subject + '&body=' + body;
+function svEM(i){var v=document.getElementById('pem'+i).value.trim();pendEM[i].email=v;var s=getSecEmails();s[pendEM[i].sec]=v;saveSecEmails(s);notify('Αποθηκεύτηκε ✓','ok');}
+function sendEM(){
+  var note=(document.getElementById('ord-note')||{value:''}).value.trim();
+  var ts=pendEM.filter(function(e){return e.email;});
+  if(!ts.length){notify('Βάλε τουλάχιστον ένα email','err');return;}
   closeModal('m-order');
-  notify('Άνοιγμα email...', 'ok');
+  ts.forEach(function(em,i){setTimeout(function(){window.open('mailto:'+em.email+'?subject='+encodeURIComponent(em.sub)+'&body='+encodeURIComponent(em.body+(note?'\n\nΣΗΜΕΙΩΣΗ: '+note:'')),'_blank');},i*700);});
+  notify('Ανοίγουν '+ts.length+' emails...','ok');
 }
 
 // ── STORES ──
@@ -658,6 +674,7 @@ function openAddProduct() {
   document.getElementById('prod-modal-title').textContent = 'Νέο Προϊόν';
   ['pr-barcode','pr-code','pr-name'].forEach(function(id) { document.getElementById(id).value=''; });
   document.getElementById('pr-barcode').disabled = false;
+  document.getElementById('pr-section').value='';
   openModal('m-product');
 }
 
@@ -669,6 +686,7 @@ function openEditProduct(bc) {
   document.getElementById('pr-barcode').disabled = true;
   document.getElementById('pr-code').value = p.code||'';
   document.getElementById('pr-name').value = p.name||'';
+  var _c=getCustomProds();var _s=(_c[bc]&&_c[bc].section)?_c[bc].section:detectSec(p.name||'');document.getElementById('pr-section').value=_s||'';
   openModal('m-product');
 }
 
@@ -677,7 +695,7 @@ function saveProduct() {
   var name = document.getElementById('pr-name').value.trim();
   if (!bc || !name) { notify('Συμπλήρωσε barcode και περιγραφή', 'err'); return; }
   var custom = getCustomProds();
-  custom[bc] = { code: document.getElementById('pr-code').value.trim(), name: name };
+  custom[bc] = { code: document.getElementById('pr-code').value.trim(), name: name, section: document.getElementById('pr-section').value };
   saveCustomProds(custom);
   closeModal('m-product');
   renderProducts();
