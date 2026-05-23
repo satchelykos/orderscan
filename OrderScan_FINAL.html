@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0d1117">
+<title>OrderScan</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+:root{--bg:#0d1117;--s1:#161b22;--s2:#21262d;--s3:#30363d;--border:#30363d;--accent:#2ea043;--al:rgba(46,160,67,0.15);--blue:#388bfd;--warn:#f85149;--wl:rgba(248,81,73,0.12);--text:#e6edf3;--t2:#8b949e;--t3:#484f58;--r:10px;--f:'Manrope',sans-serif;--m:'DM Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100dvh;max-width:480px;margin:0 auto;overflow-x:hidden}
+.screen{display:none;min-height:100dvh;flex-direction:column}
+.screen.active{display:flex}
+.hdr{position:sticky;top:0;z-index:50;background:rgba(13,17,23,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.hdr-logo{font-size:1.1rem;font-weight:800}.hdr-logo .dot{color:var(--accent)}
+.hdr-sub{font-size:0.7rem;color:var(--t2);font-family:var(--m);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-btn{background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--t2);font-size:0.78rem;font-weight:600;font-family:var(--f);padding:6px 12px;cursor:pointer}
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.pad{padding:16px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:var(--r);font-family:var(--f);font-size:0.9rem;font-weight:700;border:none;cursor:pointer;transition:all 0.15s;width:100%}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:active{opacity:0.85;transform:scale(0.98)}
+.btn-secondary{background:var(--s2);color:var(--text);border:1px solid var(--border)}.btn-secondary:active{background:var(--s3)}
+.btn-warn{background:var(--wl);color:var(--warn);border:1px solid rgba(248,81,73,0.3)}
+.btn-sm{padding:9px 14px;font-size:0.82rem;width:auto;border-radius:8px}
+.btn-row{display:flex;gap:10px}.btn-row .btn{flex:1}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:0.72rem;font-weight:700;color:var(--t2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px}
+.field input,.field textarea,.field select{width:100%;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.88rem;outline:none;transition:border-color 0.15s;-webkit-appearance:none}
+.field input:focus,.field textarea:focus{border-color:var(--blue)}
+.field textarea{resize:none;height:80px}
+.sec-title{font-size:0.72rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px}
+.gap{height:16px}.gap-sm{height:10px}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.card h3{font-size:0.82rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px}
+
+/* STORE GRID */
+.store-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.store-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 12px;cursor:pointer;transition:all 0.15s;text-align:left}
+.store-card:active{background:var(--s2);transform:scale(0.97)}
+.store-card .sc-icon{font-size:1.4rem;margin-bottom:8px}
+.store-card .sc-name{font-size:0.8rem;font-weight:700;line-height:1.3}
+.store-card .sc-count{font-size:0.7rem;color:var(--t2);font-family:var(--m);margin-top:4px}
+
+/* SCAN */
+.scan-wrap{position:relative;background:#000;overflow:hidden;flex-shrink:0}
+#scanner-container{width:100%;aspect-ratio:4/3;position:relative}
+#scanner-container video{width:100%!important;height:100%!important;object-fit:cover;display:block}
+#scanner-container canvas{display:none!important}
+.scan-ui{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.scan-box{width:72%;aspect-ratio:3.5/1;border:2px solid var(--accent);border-radius:8px;position:relative;box-shadow:0 0 0 1000px rgba(0,0,0,0.5)}
+.scan-box::before,.scan-box::after{content:'';position:absolute;width:16px;height:16px;border-color:#fff;border-style:solid}
+.scan-box::before{top:-2px;left:-2px;border-width:3px 0 0 3px}
+.scan-box::after{top:-2px;right:-2px;border-width:3px 3px 0 0}
+.scan-line{position:absolute;left:2px;right:2px;top:0;height:2px;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:scanline 2s linear infinite}
+@keyframes scanline{0%,100%{top:0}50%{top:calc(100% - 2px)}}
+.scan-hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.6);font-family:var(--m)}
+.scan-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity 0.05s}
+.scan-flash.flash{opacity:0.3}
+.scan-info{background:var(--s1);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.order-list{padding:12px 16px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.order-item{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;animation:slideIn 0.2s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.oi-info{flex:1;min-width:0}
+.oi-name{font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oi-code{font-size:0.7rem;color:var(--t2);font-family:var(--m);margin-top:2px}
+.oi-qty{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.oi-qty-val{font-size:1.1rem;font-weight:800;font-family:var(--m);color:var(--accent);min-width:28px;text-align:center}
+.oi-qty-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.oi-del{width:30px;height:30px;border-radius:8px;border:none;background:var(--wl);color:var(--warn);font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.order-empty{text-align:center;padding:40px 20px;color:var(--t2)}
+.order-empty .oe-icon{font-size:2.5rem;margin-bottom:12px;opacity:0.4}
+.scan-bottom{padding:12px 16px;background:var(--s1);border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0}
+.nav-tabs{display:flex;gap:4px;padding:8px 12px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0}
+.nav-tab{flex:1;padding:8px 6px;border-radius:8px;border:none;background:transparent;color:var(--t2);font-family:var(--f);font-size:0.75rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.15s}
+.nav-tab.active{background:var(--s2);color:var(--text);border:1px solid var(--border)}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:16px 16px 0 0;padding:20px 20px 36px;width:100%;max-width:480px;animation:slideUp 0.25s ease}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:36px;height:4px;background:var(--s3);border-radius:2px;margin:0 auto 16px}
+.modal-title{font-size:1rem;font-weight:800;margin-bottom:4px}
+.modal-sub{font-size:0.8rem;color:var(--t2);margin-bottom:20px;font-family:var(--m)}
+
+/* QTY */
+.qty-big{font-size:4rem;font-weight:800;font-family:var(--m);color:var(--accent);line-height:1;text-align:center;padding:20px 0}
+.qty-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.qty-key{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:18px 10px;font-size:1.4rem;font-weight:700;font-family:var(--m);cursor:pointer;text-align:center;transition:all 0.1s}
+.qty-key:active{background:var(--s3);transform:scale(0.95)}
+
+/* LIST ITEMS */
+.list-item{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.li-info{flex:1}.li-name{font-size:0.88rem;font-weight:700}.li-sub{font-size:0.75rem;color:var(--t2);font-family:var(--m);margin-top:2px}
+.li-actions{display:flex;gap:6px}
+.li-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--s2);color:var(--t2);font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* NOTIFY */
+.notify{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-20px);background:var(--s2);border:1px solid var(--border);border-radius:100px;padding:10px 20px;font-size:0.85rem;font-weight:600;z-index:300;opacity:0;transition:all 0.25s;white-space:nowrap;pointer-events:none;max-width:90vw;text-align:center}
+.notify.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.notify.ok{border-color:var(--accent);color:var(--accent)}
+.notify.err{border-color:var(--warn);color:var(--warn)}
+.notify.inf{border-color:var(--blue);color:var(--blue)}
+
+/* EMAIL PREVIEW */
+.email-pre{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-family:var(--m);font-size:0.78rem;color:var(--t2);white-space:pre-wrap;max-height:180px;overflow-y:auto;margin-bottom:16px;line-height:1.6}
+
+/* UPLOAD */
+.upload-area{border:2px dashed var(--border);border-radius:var(--r);padding:28px 16px;text-align:center;cursor:pointer;background:var(--s2);position:relative}
+.upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;background:none;border:none;padding:0}
+
+/* MIXTURE */
+.mix-row{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;cursor:pointer}
+.mix-row.active-row{background:rgba(46,160,67,0.08);border-left:3px solid var(--accent)}
+.mix-row.inactive-row{opacity:0.45;border-left:3px solid transparent}
+.toggle{width:38px;height:22px;border-radius:11px;position:relative;flex-shrink:0;transition:background 0.2s}
+.toggle.on{background:var(--accent)}.toggle.off{background:var(--s3);border:1px solid var(--border)}
+.toggle-dot{position:absolute;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left 0.2s}
+.toggle.on .toggle-dot{left:18px}.toggle.off .toggle-dot{left:2px}
+</style>
+</head>
+<body>
+<div class="notify" id="notify"></div>
+
+<!-- HOME -->
+<div class="screen active" id="s-home">
+  <div class="hdr">
+    <div class="hdr-logo">Order<span class="dot">.</span>Scan</div>
+    <div style="display:flex;gap:6px">
+      <button class="hdr-btn" onclick="go('s-products')">📦</button>
+      <button class="hdr-btn" onclick="go('s-stores')">⚙ Καταστήματα</button>
+      <button class="hdr-btn" onclick="go('s-settings')">☰</button>
+    </div>
+  </div>
+  <div class="content pad">
+    <div style="text-align:center;padding:24px 0 20px">
+      <div style="font-size:2rem;font-weight:800;letter-spacing:-1px">Order<span style="color:var(--accent)">.</span>Scan</div>
+      <div style="color:var(--t2);font-size:0.85rem;margin-top:6px">Επίλεξε κατάστημα</div>
+    </div>
+    <div class="sec-title">Καταστήματα</div>
+    <div class="store-grid" id="store-grid"></div>
+    <button class="btn btn-secondary" style="margin-bottom:10px" onclick="go('s-mixture')">🗂 Μείγμα Καταστημάτων</button>
+    <button class="btn btn-secondary" onclick="openAddStore()">＋ Νέο κατάστημα</button>
+  </div>
+</div>
+
+<!-- SCAN -->
+<div class="screen" id="s-scan">
+  <div class="hdr">
+    <div><div class="hdr-logo">Order<span class="dot">.</span>Scan</div><div class="hdr-sub" id="scan-lbl"></div></div>
+    <button class="hdr-btn" onclick="goHome()">✕ Έξοδος</button>
+  </div>
+  <div class="scan-wrap">
+    <div id="scanner-container">
+      <div class="scan-flash" id="scan-flash"></div>
+      <div class="scan-ui"><div class="scan-box"><div class="scan-line"></div></div></div>
+      <div class="scan-hint">Στόχευσε το barcode στο πλαίσιο</div>
+    </div>
+  </div>
+  <div class="scan-info">
+    <span style="font-size:0.78rem;font-weight:700;color:var(--accent)" id="scan-store-name"></span>
+    <span style="font-size:0.78rem;font-family:var(--m);color:var(--t2)" id="scan-count">0 προϊόντα</span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-order-btn" onclick="switchTab('order')">📋 Παραγγελία</button>
+    <button class="nav-tab" id="tab-list-btn" onclick="switchTab('list')">📦 Λίστα</button>
+  </div>
+  <div class="order-list" id="order-list"></div>
+  <div class="order-list" id="store-list" style="display:none"></div>
+  <div class="scan-bottom">
+    <button class="btn btn-secondary btn-sm" onclick="openManual()">✎ Χειροκίνητο</button>
+    <button class="btn btn-primary" style="flex:1" onclick="openPreview()">Αποστολή →</button>
+  </div>
+</div>
+
+<!-- STORES -->
+<div class="screen" id="s-stores">
+  <div class="hdr"><div class="hdr-logo">Order<span class="dot">.</span>Scan</div><button class="hdr-btn" onclick="go('s-home')">← Πίσω</button></div>
+  <div class="content pad">
+    <div class="sec-title">Διαχείριση Καταστημάτων</div>
+    <div id="stores-list"></div>
+    <div class="gap"></div>
+    <button class="btn btn-secondary" onclick="openAddStore()">＋ Νέο κατάστημα</button>
+  </div>
+</div>
+
+<!-- PRODUCTS -->
+<div class="screen" id="s-products">
+  <div class="hdr"><div class="hdr-logo">Order<span class="dot">.</span>Scan</div><button class="hdr-btn" onclick="go('s-home')">← Πίσω</button></div>
+  <div class="content pad">
+    <div class="sec-title">Διαχείριση Προϊόντων</div>
+    <div class="field"><label>Αναζήτηση</label><input type="text" id="prod-search" placeholder="Όνομα ή barcode..." oninput="renderProducts()"></div>
+    <div id="prod-list"></div>
+    <div class="gap"></div>
+    <button class="btn btn-primary" onclick="openAddProduct()">＋ Νέο Προϊόν</button>
+  </div>
+</div>
+
+<!-- MIXTURE -->
+<div class="screen" id="s-mixture">
+  <div class="hdr"><div class="hdr-logo">Order<span class="dot">.</span>Scan</div><button class="hdr-btn" onclick="go('s-home')">← Πίσω</button></div>
+  <div class="content pad">
+    <div class="sec-title">Μείγμα Καταστημάτων</div>
+    <p style="font-size:0.82rem;color:var(--t2);margin-bottom:16px">Πάτα toggle για ενεργοποίηση/απενεργοποίηση προϊόντος ανά κατάστημα.</p>
+    <div id="mixture-list"></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="s-settings">
+  <div class="hdr"><div class="hdr-logo">Order<span class="dot">.</span>Scan</div><button class="hdr-btn" onclick="go('s-home')">← Πίσω</button></div>
+  <div class="content pad">
+    <div class="sec-title">Ρυθμίσεις</div>
+    <div class="card"><h3>📤 Export</h3><p style="font-size:0.82rem;color:var(--t2);margin-bottom:14px">Κατέβασε backup με καταστήματα και custom προϊόντα.</p><button class="btn btn-primary" onclick="exportData()">📤 Κατέβασε Backup</button></div>
+    <div class="gap"></div>
+    <div class="card"><h3>📥 Import</h3><p style="font-size:0.82rem;color:var(--t2);margin-bottom:14px">Φόρτωσε backup από άλλη συσκευή.</p><div class="upload-area"><input type="file" accept=".json" onchange="importData(event)"><div style="font-size:2rem;margin-bottom:8px">📥</div><div style="font-size:0.85rem;color:var(--t2)">Πάτα για να επιλέξεις <strong>orderscan-backup.json</strong></div></div></div>
+  </div>
+</div>
+
+<!-- MODAL: QTY -->
+<div class="modal-bg" id="m-qty">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="qty-name"></div>
+    <div class="modal-sub" id="qty-code"></div>
+    <div class="qty-big" id="qty-display">0</div>
+    <div class="qty-pad">
+      <div class="qty-key" onclick="qk('1')">1</div><div class="qty-key" onclick="qk('2')">2</div><div class="qty-key" onclick="qk('3')">3</div>
+      <div class="qty-key" onclick="qk('4')">4</div><div class="qty-key" onclick="qk('5')">5</div><div class="qty-key" onclick="qk('6')">6</div>
+      <div class="qty-key" onclick="qk('7')">7</div><div class="qty-key" onclick="qk('8')">8</div><div class="qty-key" onclick="qk('9')">9</div>
+      <div class="qty-key" onclick="qk('del')" style="font-size:1rem;color:var(--t2)">⌫</div>
+      <div class="qty-key" onclick="qk('0')">0</div>
+      <div class="qty-key" onclick="qk('clr')" style="font-size:0.75rem;color:var(--warn)">CLR</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('m-qty')">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="confirmQty()">✓ OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MANUAL -->
+<div class="modal-bg" id="m-manual">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Χειροκίνητη Εισαγωγή</div>
+    <div class="modal-sub">Barcode ή κωδικός προϊόντος</div>
+    <div class="field"><input type="text" id="manual-val" placeholder="π.χ. 5204719004761" inputmode="numeric" oninput="manualSearch()"></div>
+    <div id="manual-match" style="display:none;background:var(--al);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:0.85rem;font-weight:700" id="mm-name"></div>
+      <div style="font-size:0.72rem;color:var(--t2);font-family:var(--m);margin-top:3px" id="mm-code"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('m-manual')">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="confirmManual()">Επόμενο →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: STORE -->
+<div class="modal-bg" id="m-store">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="store-modal-title">Νέο Κατάστημα</div>
+    <div class="field"><label>Όνομα *</label><input type="text" id="st-name" placeholder="π.χ. ΣΟΥΠΕΡ ΜΑΡΚΕΤ"></div>
+    <div class="field"><label>Email</label><input type="email" id="st-email" placeholder="orders@example.com"></div>
+    <div class="field"><label>Διεύθυνση</label><input type="text" id="st-addr" placeholder="Οδός 123, Πόλη"></div>
+    <div class="field"><label>Τηλέφωνο</label><input type="text" id="st-phone" placeholder="2810 000000" inputmode="tel"></div>
+    <div class="field"><label>Σημειώσεις</label><textarea id="st-notes" placeholder="Ελεύθερο κείμενο..."></textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('m-store')">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="saveStore()">Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PRODUCT -->
+<div class="modal-bg" id="m-product">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="prod-modal-title">Νέο Προϊόν</div>
+    <div class="field"><label>Barcode *</label><input type="text" id="pr-barcode" placeholder="5204719004761" inputmode="numeric"></div>
+    <div class="field"><label>Κωδικός</label><input type="text" id="pr-code" placeholder="00476"></div>
+    <div class="field"><label>Περιγραφή *</label><input type="text" id="pr-name" placeholder="ΕΛΑΙΟΛΑΔΟ 1.5L"></div>
+    <div class="field"><label>Τμήμα</label><select id="pr-section" style="width:100%;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.88rem;outline:none"><option value="">— Αυτόματο —</option><option value="elaiolado">🫒 Ελαιόλαδο</option><option value="elies">🍈 Ελιές</option><option value="mpaxarika">🌿 Μπαχαρικά / Βότανα / Σετ Δώρου</option><option value="metapoiisi">🏭 Συσκευασία / Γλυκά / Σαπούνι</option></select></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('m-product')">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ORDER SEND -->
+<div class="modal-bg" id="m-order">
+  <div class="modal" id="m-order-inner" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+  </div>
+</div>
+
+<script>
+const DB = {"products": {"5204719004761": {"code": "00476", "name": "ΔΙΚΤΑΜΟΣ ΒΙΟ CRETA BEAUTY 50GR"}, "5204719027791": {"code": "02779", "name": "ΣΕΤ ΜΑΡΜΕΛΑΔΕΣ ΧΑΡΤ 3Χ40ML CR.BE"}, "5204719505886": {"code": "50588", "name": "ΜΕΙΓΜΑ ΓΙΑ ΜΠΑΡΜΠΕΚΙΟΥ 60Γ CR.BE"}, "5204719018119": {"code": "01811", "name": "ΕΛΑΙΟΛΑΔΟ ΠΑΡ ΣΗΤ\"OLEA SECR\"1.5L"}, "5204719505916": {"code": "50591", "name": "ΜΕΙΓΜΑ ΓΙΑ ΨΑΡΙ 60Γ CR.BEAUTY"}, "5204719026213": {"code": "02621", "name": "ΧΑΛΒΑΣ ΣΟΚΟΛΑΤΑ 200ΓΡ CR.BEAUTY"}, "5204719505763": {"code": "50576", "name": "ΜΕΙΓΜΑ ΓΙΑ ΜΟΥΣΑΚΑ 60Γ CR.BEAUTY"}, "5204719505770": {"code": "50577", "name": "ΜΕΙΓΜΑ ΓΙΑ ΠΑΤΑΤΕΣ 60ΓΡ CR BEAUT"}, "5204719003825": {"code": "00382", "name": "ΜΙΧ ΜΠΑΧ GREEK SALAD 70ΓΡ CR.NET"}, "5204719004808": {"code": "00480", "name": "ΡΙΓΑΝΗ ΒΙΟ CRETA BEAUTY 80ΓΡ"}, "5204719505633": {"code": "50563", "name": "ΜΕΙΓΜΑ ΓΙΑ ΣΟΥΒΛΑΚΙ 60Γ CR.BEAUT"}, "5204719505909": {"code": "50590", "name": "ΜΕΙΓΜΑ ΓΙΑ ΚΟΤΟΠΟΥΛΟ 60Γ CR.BEAU"}, "5204719003894": {"code": "00389", "name": "MIX ΜΠΑΧ ΤΖΑΤΖΙΚΙ 180ΓΡ CRETA NE"}, "5204719004716": {"code": "00471", "name": "ΤΣΑΙ ΑΜΑΝΕΙΚΤ ΒΙΟ\"ΜΙΧ ΓΙΑΓΙΑ\"50Γ"}, "5204719004730": {"code": "00473", "name": "ΔΙΚΤΑΜΟΣ ΒΙΟ CRETA BEAUTY 50GR"}, "5204719017037": {"code": "01703", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΣΚΟΡΔΟ 250ML"}, "5204719017051": {"code": "01705", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΤΣΙΛΙ 250ΜL CR B"}, "5204719017068": {"code": "01706", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΒΑΣΙΛΙΚΟ 250ML CR B"}, "5204719017082": {"code": "01708", "name": "ΕΛΑΙΟΛΑΔΟ ΜΕ ΚΑΝΑΒΗ 250ML CR B"}, "5204719027609": {"code": "02760", "name": "ΣΕΤ ΜΕΛΙΑ ΧΑΡΤ 3Χ40ΓΡ CR.BEAUTY"}, "5204719177052": {"code": "17705", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ 400ΓΡ CR.BEAUTY"}, "5204719177090": {"code": "17709", "name": "ΕΛΙΕΣ ΠΙΚΑΝΤΙΚ ΠΡΑΣ 400Γ CR BEAU"}, "5204719178059": {"code": "17805", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ 250ΓΡ CR.BEAUTY"}, "5204719503516": {"code": "50351", "name": "ΣΕΤ ΤΕΛΑΡΑΚΙ ΜΙΚΡΟ CRETAN BEAUT"}, "5204719505602": {"code": "50560", "name": "ΜΕΙΓΜΑ ΓΙΑ ΣΑΛΑΤΑ 60ΓΡ CR.BEAUTY"}, "5204719505619": {"code": "50561", "name": "ΜΕΙΓΜΑ ΓΙΑ ΦΕΤΑ 60ΓΡ CR.BEAUTY"}, "5204719505626": {"code": "50562", "name": "ΜΕΙΓΜΑ ΓΙΑ ΤΖΑΤΖΙΚΙ 70Γ CR.BEAUT"}, "5204719505893": {"code": "50589", "name": "ΜΕΙΓΜΑ ΓΙΑ ΓΥΡΟ 60Γ CR.BEAUTY"}, "5204719018713": {"code": "01871", "name": "ΣΕΤ 3 ΑΡΩΜΑΤ ΕΛΑΙΟΛ ΧΑΡΤΙΝ 3Χ50M"}, "5204719169088": {"code": "16908", "name": "ΣΑΠ ΛΑΔΙ-ALOE ΚΡΗΤΗ 2T 200GR KRE "}, "5204719161662": {"code": "16166", "name": "ΣΑΠΟΥΝΙ ΕΛΑΙΟΛ ΗΦ ΛΑΒΑ125Γ CR BE"}, "5204719026237": {"code": "02623", "name": "ΧΑΛΒΑΣ ΑΜΥΓΔΑΛΟ 200ΓΡ CR.BEAUTY"}, "5204719018461": {"code": "01846", "name": "ΕΛΑΙΟΛΑΔΟ ΠΟΠ ΣΗΤΕΙΑ ΕΞ.Π.100ML"}, "5204719018430": {"code": "01843", "name": "ΕΛΑΙΟΛ-ΒΟΤΑΝΑ SONATA-ΚΑΝΑΤΑΚ 100"}, "5204719018423": {"code": "01842", "name": "ΕΛΑΙΟΛΑΔΟ ΠΑΡΘ ΣΗΤ ΞΥΛ ΠΩΜΑ 250M"}, "5204719011035": {"code": "01103", "name": "ΕΛΑΙΟΛΑΔΟ Ε.Π\"TERRA DIAS 0.2\"100"}, "5204719026114": {"code": "02611", "name": "ΜΠΑΚΛΑΒΑΣ ΜΕ ΣΟΚΟΛ&ΦΟΥΝ 240Γ C.B"}, "5204719277530": {"code": "27753", "name": "ΜΕΛΕΚΟΥΝΙ ΡΟΔΟΥ 60ΓΡ"}, "5204719004709": {"code": "00470", "name": "ΤΣΑΙ ΑΝΑΜΕΙΚ ΒΙΟ\"ΜΙΧ ΠΑΠΠΟΥ\"50ΓΡ"}, "5204719178097": {"code": "17809", "name": "ΕΛΙΕΣ ΠΡΑΣ ΠΙΚΑΝΤ 250Γ CR.BEAUTY"}, "5204719503240": {"code": "50324", "name": "ΣΕΤ ΚΑΦΑΣΑΚΙ ΜΙΚΡΟ CR.NET"}, "5204719503523": {"code": "50352", "name": "ΣΕΤ ΤΕΛΑΡΑΚΙ ΜΕΣΑΙΟ CRETAN BEAUT"}, "5204719503615": {"code": "50361", "name": "ΣΕΤ ΧΑΡΤ ΒΙΟΛ ΠΑΡΘ ΕΛΑΙΟΛ&ΜΠ&ΜΑΡ"}, "5204719018928": {"code": "01892", "name": "ΕΛΑΙΟΛΑΔΟ\"PURE\"ΕΞ.ΠΑΡΘ 250M CR B"}, "5204719018089": {"code": "01808", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.ΠΑΡΘΕΝΟ 1L CR.BEAUT"}, "5204719004723": {"code": "00472", "name": "ΤΣΑΙ ΒΟΥΝΟΥ ΒΙΟ CRETA BEAUTY 50G"}, "5204719015118": {"code": "01511", "name": "ΕΛΑΙΟΛ ΕΞΑΙΡ ΠΑΡΘ \"0.3\" 250M C.B"}, "5204719015132": {"code": "01513", "name": "ΕΛΑΙΟΛ ΕΞ.ΠΑΡΘ \"0.2\" 500ML CR.B"}, "5204719018355": {"code": "01835", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.Π ΠΟΠ ΣΗΤ HIGH750ML"}, "5204719018607": {"code": "01860", "name": "ΕΛΑΙΟΛΑΔΟ\"KANDEMILIS\"ΕΞ.ΠΑΡΘ1.5L"}, "5204719026299": {"code": "02629", "name": "ΜΙΞ ΧΑΛΒΑΣ-ΛΟΥΚΟΥΜ-ΜΠΑΚΛ CR.BEAU"}, "5204719161808": {"code": "16180", "name": "ΣΑΠΟΥΝΙ EX VIRG OLIV OIL100G C.B"}, "5204719163369": {"code": "16336", "name": "ΣΑΠΟΥΝΙ ΕΛΑΙΟΛΑΔΟΥ 100ΓΡ CR B"}, "5204719177069": {"code": "17706", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ&ΚΑΛΑΜ 400ΓΡCR BEA"}, "5204719177106": {"code": "17710", "name": "ΕΛΙΕΣ ΚΑΛΑΜΩΝ 400ΓΡ CR BEAUTY"}, "5204719276519": {"code": "27651", "name": "ΜΑΝΤΟΛΑΤΟ ΑΝΑΜ PET 260ΓΡ CR.BEAU"}, "5204719276991": {"code": "27699", "name": "ΜΑΝΤΟΛΑΤΟ ΔΙΑΦ ΓΕΥΣ 70ΓΡ CR.BEAU"}, "5204719504001": {"code": "50400", "name": "ΜΕΙΓΜΑ ΜΠΑΧΑΡΙΚΩΝ CR BEAUTY 3X50"}, "5204719011844": {"code": "01184", "name": "ΕΛΑΙΟΛΑΔΟ ΠΟΠ ΣΗΤΕΙΑ TIN ΕΞ.Π.1L"}, "5204719018102": {"code": "01810", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.Π.ΠΟΠ ΣΗΤ.Γ.250ML πωμα ελιας"}, "5204719018126": {"code": "01812", "name": "ΕΛΑΙΟΛΑΔΟ ΕΞ.ΠΑΡΘΕΝΟ AGRELI 750M"}, "5204719018539": {"code": "01853", "name": "ΕΛΑΙΟΛΑΔΟ ΠΟΠ ΣΗΤΕΙΑ ΕΞ.Π.500ML"}, "5204719018546": {"code": "01854", "name": "ΕΛΑΙΟΛΑΔΟ\"PURE\"ΕΞ.ΠΑΡΘ 750M CR Β"}, "5204719018560": {"code": "01856", "name": "ΕΛΑΙΟΛΑΔΟ \"PURE\"P.D.O ΣΗΤΕΙΑ 750"}, "5204719018669": {"code": "01866", "name": "ΕΛΑΙΟΛΑΔΟ ΠΑΡΘ ΣΗΤ ΞΥΛ ΠΩΜΑ 500Μ"}, "5204719018942": {"code": "01894", "name": "ΕΛΑΙΟΛΑΔΟ\"PURE\"ΕΞ.ΠΑΡΘ 500M CR B"}, "5204719026008": {"code": "02600", "name": "ΜΙΧ ΣΙΡΟΠΙΑΣΤΩΝ 4ΤΜΧ CR.BEAUTY"}, "5204719170015": {"code": "17001", "name": "ΣΕΤ ΕΛΙΕΣ 3Χ150ΓΡ CR.BEAUTY"}, "5204719177120": {"code": "17712", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ ΒΟΤΑΝΑ 400ΓΡ CR.B"}, "5204719178066": {"code": "17806", "name": "ΕΛΙΕΣ ΠΡΑΣΙΝΕΣ&ΚΑΛΑΜΩΝ 250Γ CR.B"}, "5204719178103": {"code": "17810", "name": "ΕΛΙΕΣ ΚΑΛΑΜΩΝ 250ΓΡ CR.BEAUTY"}, "5204719502168": {"code": "50216", "name": "ΚΑΡΑΜΕΛΕΣ 150ΓΡ ΔΙΑΦΟΡΕΣ ΓΕΥΣΕΙΣ"}, "5204719503448": {"code": "50344", "name": "ΣΕΤ ΧΑΡΤ ΟΥΖΟ 60Μ ΡΑΚΙ-ΠΑΤΕ-ΜΕΛΙ"}, "5204719503608": {"code": "50360", "name": "ΣΕΤ ΧΑΡΤΙΝ ΛΑΔΙ 2Χ60ML&ΠΑΤΕ&ΜΑΡΜ"}, "5204719504599": {"code": "50459", "name": "ΠΙΠΕΡΙΑ ΑΝΑΜΕΙΚΤΑ ΣΑΚ 80Γ CR BEA"}, "5204719505497": {"code": "50549", "name": "ΠΙΠΕΡΙΑ ΑΝΑΜΕΙΚΤΑ ΜΥΛ80Γ CR BEAU"}, "5204719504537": {"code": "50453", "name": "ΑΝΘΟΣ ΘΑΛΑΣΣΙΝΟΥ ΑΛΑΤΙΟΥ ΣΑΚ200Γ"}, "5204719505473": {"code": "50547", "name": "ΑΝΘΟΣ ΑΛΑΤΙΟΥ ΘΑΛΑΣ ΜΥΛ200Γ CR B"}}, "stores": [{"name": "ΕΠΙΜΕΝΙΔΟΥ", "products": ["5204719018119", "5204719004716", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719178059", "5204719503516", "5204719505619", "5204719018713", "5204719169088", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": true}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": false}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": true}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": true}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": false}, {"barcode": "5204719178059", "active": true}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": false}, {"barcode": "5204719505619", "active": true}, {"barcode": "5204719505626", "active": false}, {"barcode": "5204719505893", "active": false}, {"barcode": "5204719018713", "active": true}, {"barcode": "5204719169088", "active": true}, {"barcode": "5204719161662", "active": false}, {"barcode": "5204719026237", "active": false}, {"barcode": "5204719018461", "active": false}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": false}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": false}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": false}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΙΕΡΑΠΕΤΡΑ", "products": ["5204719505763", "5204719505770", "5204719505633", "5204719003894", "5204719004716", "5204719004730", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": true}, {"barcode": "5204719505770", "active": true}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": true}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": true}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": false}, {"barcode": "5204719017051", "active": false}, {"barcode": "5204719017068", "active": false}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": true}, {"barcode": "5204719177052", "active": true}, {"barcode": "5204719177090", "active": true}, {"barcode": "5204719178059", "active": true}, {"barcode": "5204719503516", "active": false}, {"barcode": "5204719505602", "active": true}, {"barcode": "5204719505619", "active": true}, {"barcode": "5204719505626", "active": true}, {"barcode": "5204719505893", "active": true}, {"barcode": "5204719018713", "active": false}, {"barcode": "5204719169088", "active": false}, {"barcode": "5204719161662", "active": false}, {"barcode": "5204719026237", "active": false}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΙΚΑΡΟΥ", "products": ["5204719004723", "5204719015118", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": false}, {"barcode": "5204719004730", "active": false}, {"barcode": "5204719017037", "active": false}, {"barcode": "5204719017051", "active": false}, {"barcode": "5204719017068", "active": false}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": false}, {"barcode": "5204719178059", "active": false}, {"barcode": "5204719503516", "active": false}, {"barcode": "5204719505602", "active": false}, {"barcode": "5204719505619", "active": false}, {"barcode": "5204719505626", "active": false}, {"barcode": "5204719505893", "active": false}, {"barcode": "5204719018713", "active": false}, {"barcode": "5204719169088", "active": false}, {"barcode": "5204719161662", "active": false}, {"barcode": "5204719026237", "active": false}, {"barcode": "5204719018461", "active": false}, {"barcode": "5204719018430", "active": false}, {"barcode": "5204719018423", "active": false}, {"barcode": "5204719011035", "active": false}, {"barcode": "5204719026114", "active": false}, {"barcode": "5204719277530", "active": false}, {"barcode": "5204719004709", "active": false}, {"barcode": "5204719178097", "active": false}, {"barcode": "5204719503240", "active": false}, {"barcode": "5204719503523", "active": false}, {"barcode": "5204719503615", "active": false}, {"barcode": "5204719018928", "active": false}, {"barcode": "5204719018089", "active": false}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": false}, {"barcode": "5204719018355", "active": false}, {"barcode": "5204719018607", "active": false}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": false}, {"barcode": "5204719018669", "active": false}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΚΟΡΩΝΑΙΟΥ", "products": ["5204719004761", "5204719004808", "5204719003894", "5204719004716", "5204719004730", "5204719017037", "5204719017068", "5204719505602", "5204719505626", "5204719169088", "5204719161662", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608", "5204719504599", "5204719505497", "5204719504537", "5204719505473"], "allProducts": [{"barcode": "5204719004761", "active": true}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": true}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": true}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": false}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": false}, {"barcode": "5204719178059", "active": false}, {"barcode": "5204719503516", "active": false}, {"barcode": "5204719505602", "active": true}, {"barcode": "5204719505619", "active": false}, {"barcode": "5204719505626", "active": true}, {"barcode": "5204719505893", "active": false}, {"barcode": "5204719018713", "active": false}, {"barcode": "5204719169088", "active": true}, {"barcode": "5204719161662", "active": true}, {"barcode": "5204719026237", "active": false}, {"barcode": "5204719018461", "active": false}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": false}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": true}, {"barcode": "5204719505497", "active": true}, {"barcode": "5204719504537", "active": true}, {"barcode": "5204719505473", "active": true}]}, {"name": "ΧΕΡΣΟΝΗΣΟΣ", "products": ["5204719004761", "5204719027791", "5204719505886", "5204719018119", "5204719505916", "5204719026213", "5204719505763", "5204719505770", "5204719003825", "5204719004808", "5204719505633", "5204719505909", "5204719003894", "5204719004716", "5204719004730", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719503516", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018713", "5204719169088", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608", "5204719504599", "5204719505497", "5204719504537", "5204719505473"], "allProducts": [{"barcode": "5204719004761", "active": true}, {"barcode": "5204719027791", "active": true}, {"barcode": "5204719505886", "active": true}, {"barcode": "5204719018119", "active": true}, {"barcode": "5204719505916", "active": true}, {"barcode": "5204719026213", "active": true}, {"barcode": "5204719505763", "active": true}, {"barcode": "5204719505770", "active": true}, {"barcode": "5204719003825", "active": true}, {"barcode": "5204719004808", "active": true}, {"barcode": "5204719505633", "active": true}, {"barcode": "5204719505909", "active": true}, {"barcode": "5204719003894", "active": true}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": true}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": true}, {"barcode": "5204719027609", "active": true}, {"barcode": "5204719177052", "active": true}, {"barcode": "5204719177090", "active": true}, {"barcode": "5204719178059", "active": true}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": true}, {"barcode": "5204719505619", "active": true}, {"barcode": "5204719505626", "active": true}, {"barcode": "5204719505893", "active": true}, {"barcode": "5204719018713", "active": true}, {"barcode": "5204719169088", "active": true}, {"barcode": "5204719161662", "active": true}, {"barcode": "5204719026237", "active": true}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": true}, {"barcode": "5204719505497", "active": true}, {"barcode": "5204719504537", "active": true}, {"barcode": "5204719505473", "active": true}]}, {"name": "ΜΑΛΙΑ", "products": ["5204719004761", "5204719027791", "5204719505886", "5204719018119", "5204719505916", "5204719026213", "5204719505763", "5204719505770", "5204719003825", "5204719004808", "5204719505633", "5204719505909", "5204719003894", "5204719004716", "5204719004730", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719503516", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018713", "5204719169088", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608", "5204719504599", "5204719505497", "5204719504537", "5204719505473"], "allProducts": [{"barcode": "5204719004761", "active": true}, {"barcode": "5204719027791", "active": true}, {"barcode": "5204719505886", "active": true}, {"barcode": "5204719018119", "active": true}, {"barcode": "5204719505916", "active": true}, {"barcode": "5204719026213", "active": true}, {"barcode": "5204719505763", "active": true}, {"barcode": "5204719505770", "active": true}, {"barcode": "5204719003825", "active": true}, {"barcode": "5204719004808", "active": true}, {"barcode": "5204719505633", "active": true}, {"barcode": "5204719505909", "active": true}, {"barcode": "5204719003894", "active": true}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": true}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": true}, {"barcode": "5204719027609", "active": true}, {"barcode": "5204719177052", "active": true}, {"barcode": "5204719177090", "active": true}, {"barcode": "5204719178059", "active": true}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": true}, {"barcode": "5204719505619", "active": true}, {"barcode": "5204719505626", "active": true}, {"barcode": "5204719505893", "active": true}, {"barcode": "5204719018713", "active": true}, {"barcode": "5204719169088", "active": true}, {"barcode": "5204719161662", "active": true}, {"barcode": "5204719026237", "active": true}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": true}, {"barcode": "5204719505497", "active": true}, {"barcode": "5204719504537", "active": true}, {"barcode": "5204719505473", "active": true}]}, {"name": "ΜΑΥΣΩΛΟΥ", "products": ["5204719004730", "5204719503516", "5204719018713", "5204719004709", "5204719503240", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": false}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": false}, {"barcode": "5204719017051", "active": false}, {"barcode": "5204719017068", "active": false}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": false}, {"barcode": "5204719178059", "active": false}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": false}, {"barcode": "5204719505619", "active": false}, {"barcode": "5204719505626", "active": false}, {"barcode": "5204719505893", "active": false}, {"barcode": "5204719018713", "active": true}, {"barcode": "5204719169088", "active": false}, {"barcode": "5204719161662", "active": false}, {"barcode": "5204719026237", "active": false}, {"barcode": "5204719018461", "active": false}, {"barcode": "5204719018430", "active": false}, {"barcode": "5204719018423", "active": false}, {"barcode": "5204719011035", "active": false}, {"barcode": "5204719026114", "active": false}, {"barcode": "5204719277530", "active": false}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": false}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": false}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": false}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": false}, {"barcode": "5204719163369", "active": false}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΠΑΡΑΛΙΑΚΗ", "products": ["5204719004730", "5204719503516", "5204719018713", "5204719004709", "5204719503240", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": false}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": false}, {"barcode": "5204719017051", "active": false}, {"barcode": "5204719017068", "active": false}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": false}, {"barcode": "5204719178059", "active": false}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": false}, {"barcode": "5204719505619", "active": false}, {"barcode": "5204719505626", "active": false}, {"barcode": "5204719505893", "active": false}, {"barcode": "5204719018713", "active": true}, {"barcode": "5204719169088", "active": false}, {"barcode": "5204719161662", "active": false}, {"barcode": "5204719026237", "active": false}, {"barcode": "5204719018461", "active": false}, {"barcode": "5204719018430", "active": false}, {"barcode": "5204719018423", "active": false}, {"barcode": "5204719011035", "active": false}, {"barcode": "5204719026114", "active": false}, {"barcode": "5204719277530", "active": false}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": false}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": false}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": false}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": false}, {"barcode": "5204719163369", "active": false}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΠΑΛΑΙΟΛΟΓΟΥ", "products": ["5204719503516", "5204719026237", "5204719018461", "5204719277530", "5204719178097", "5204719503523", "5204719503615", "5204719018928", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": false}, {"barcode": "5204719004730", "active": false}, {"barcode": "5204719017037", "active": false}, {"barcode": "5204719017051", "active": false}, {"barcode": "5204719017068", "active": false}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": false}, {"barcode": "5204719178059", "active": false}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": false}, {"barcode": "5204719505619", "active": false}, {"barcode": "5204719505626", "active": false}, {"barcode": "5204719505893", "active": false}, {"barcode": "5204719018713", "active": false}, {"barcode": "5204719169088", "active": false}, {"barcode": "5204719161662", "active": false}, {"barcode": "5204719026237", "active": true}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": false}, {"barcode": "5204719018423", "active": false}, {"barcode": "5204719011035", "active": false}, {"barcode": "5204719026114", "active": false}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": false}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": false}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": false}, {"barcode": "5204719004723", "active": false}, {"barcode": "5204719015118", "active": false}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": false}, {"barcode": "5204719276991", "active": false}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΡΕΘΥΜΝΟ", "products": ["5204719026213", "5204719505633", "5204719004716", "5204719004730", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719503516", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018713", "5204719169088", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": true}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": true}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": true}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": true}, {"barcode": "5204719027609", "active": true}, {"barcode": "5204719177052", "active": true}, {"barcode": "5204719177090", "active": true}, {"barcode": "5204719178059", "active": true}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": true}, {"barcode": "5204719505619", "active": true}, {"barcode": "5204719505626", "active": true}, {"barcode": "5204719505893", "active": true}, {"barcode": "5204719018713", "active": true}, {"barcode": "5204719169088", "active": true}, {"barcode": "5204719161662", "active": true}, {"barcode": "5204719026237", "active": true}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΣΗΤΕΙΑ", "products": ["5204719026213", "5204719017037", "5204719017051", "5204719017068", "5204719505893", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": true}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": false}, {"barcode": "5204719004730", "active": false}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": true}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": false}, {"barcode": "5204719178059", "active": false}, {"barcode": "5204719503516", "active": false}, {"barcode": "5204719505602", "active": false}, {"barcode": "5204719505619", "active": false}, {"barcode": "5204719505626", "active": false}, {"barcode": "5204719505893", "active": true}, {"barcode": "5204719018713", "active": false}, {"barcode": "5204719169088", "active": false}, {"barcode": "5204719161662", "active": true}, {"barcode": "5204719026237", "active": true}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": false}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΤΥΜΠΑΚΙ", "products": ["5204719004716", "5204719004730", "5204719177090", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": false}, {"barcode": "5204719003894", "active": false}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": false}, {"barcode": "5204719017051", "active": false}, {"barcode": "5204719017068", "active": false}, {"barcode": "5204719017082", "active": false}, {"barcode": "5204719027609", "active": false}, {"barcode": "5204719177052", "active": false}, {"barcode": "5204719177090", "active": true}, {"barcode": "5204719178059", "active": false}, {"barcode": "5204719503516", "active": false}, {"barcode": "5204719505602", "active": false}, {"barcode": "5204719505619", "active": false}, {"barcode": "5204719505626", "active": false}, {"barcode": "5204719505893", "active": false}, {"barcode": "5204719018713", "active": false}, {"barcode": "5204719169088", "active": false}, {"barcode": "5204719161662", "active": false}, {"barcode": "5204719026237", "active": true}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": false}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΧΑΝΙΑ", "products": ["5204719003825", "5204719004808", "5204719505909", "5204719003894", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719169088", "5204719161662", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608"], "allProducts": [{"barcode": "5204719004761", "active": false}, {"barcode": "5204719027791", "active": false}, {"barcode": "5204719505886", "active": false}, {"barcode": "5204719018119", "active": false}, {"barcode": "5204719505916", "active": false}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": false}, {"barcode": "5204719505770", "active": false}, {"barcode": "5204719003825", "active": true}, {"barcode": "5204719004808", "active": true}, {"barcode": "5204719505633", "active": false}, {"barcode": "5204719505909", "active": true}, {"barcode": "5204719003894", "active": true}, {"barcode": "5204719004716", "active": false}, {"barcode": "5204719004730", "active": false}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": true}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": true}, {"barcode": "5204719027609", "active": true}, {"barcode": "5204719177052", "active": true}, {"barcode": "5204719177090", "active": true}, {"barcode": "5204719178059", "active": true}, {"barcode": "5204719503516", "active": false}, {"barcode": "5204719505602", "active": true}, {"barcode": "5204719505619", "active": true}, {"barcode": "5204719505626", "active": true}, {"barcode": "5204719505893", "active": true}, {"barcode": "5204719018713", "active": false}, {"barcode": "5204719169088", "active": true}, {"barcode": "5204719161662", "active": true}, {"barcode": "5204719026237", "active": false}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": false}, {"barcode": "5204719505497", "active": false}, {"barcode": "5204719504537", "active": false}, {"barcode": "5204719505473", "active": false}]}, {"name": "ΚΟΚΚΙΝΗ", "products": ["5204719505916", "5204719505763", "5204719505770", "5204719505633", "5204719505909", "5204719003894", "5204719004716", "5204719004730", "5204719017037", "5204719017051", "5204719017068", "5204719017082", "5204719027609", "5204719177052", "5204719177090", "5204719178059", "5204719503516", "5204719505602", "5204719505619", "5204719505626", "5204719505893", "5204719018713", "5204719169088", "5204719161662", "5204719026237", "5204719018461", "5204719018430", "5204719018423", "5204719011035", "5204719026114", "5204719277530", "5204719004709", "5204719178097", "5204719503240", "5204719503523", "5204719503615", "5204719018928", "5204719018089", "5204719004723", "5204719015118", "5204719015132", "5204719018355", "5204719018607", "5204719026299", "5204719161808", "5204719163369", "5204719177069", "5204719177106", "5204719276519", "5204719276991", "5204719504001", "5204719011844", "5204719018102", "5204719018126", "5204719018539", "5204719018546", "5204719018560", "5204719018669", "5204719018942", "5204719026008", "5204719170015", "5204719177120", "5204719178066", "5204719178103", "5204719502168", "5204719503448", "5204719503608", "5204719504599", "5204719505497", "5204719504537", "5204719505473"], "allProducts": [{"barcode": "5204719505916", "active": true}, {"barcode": "5204719026213", "active": false}, {"barcode": "5204719505763", "active": true}, {"barcode": "5204719505770", "active": true}, {"barcode": "5204719003825", "active": false}, {"barcode": "5204719004808", "active": false}, {"barcode": "5204719505633", "active": true}, {"barcode": "5204719505909", "active": true}, {"barcode": "5204719003894", "active": true}, {"barcode": "5204719004716", "active": true}, {"barcode": "5204719004730", "active": true}, {"barcode": "5204719017037", "active": true}, {"barcode": "5204719017051", "active": true}, {"barcode": "5204719017068", "active": true}, {"barcode": "5204719017082", "active": true}, {"barcode": "5204719027609", "active": true}, {"barcode": "5204719177052", "active": true}, {"barcode": "5204719177090", "active": true}, {"barcode": "5204719178059", "active": true}, {"barcode": "5204719503516", "active": true}, {"barcode": "5204719505602", "active": true}, {"barcode": "5204719505619", "active": true}, {"barcode": "5204719505626", "active": true}, {"barcode": "5204719505893", "active": true}, {"barcode": "5204719018713", "active": true}, {"barcode": "5204719169088", "active": true}, {"barcode": "5204719161662", "active": true}, {"barcode": "5204719026237", "active": true}, {"barcode": "5204719018461", "active": true}, {"barcode": "5204719018430", "active": true}, {"barcode": "5204719018423", "active": true}, {"barcode": "5204719011035", "active": true}, {"barcode": "5204719026114", "active": true}, {"barcode": "5204719277530", "active": true}, {"barcode": "5204719004709", "active": true}, {"barcode": "5204719178097", "active": true}, {"barcode": "5204719503240", "active": true}, {"barcode": "5204719503523", "active": true}, {"barcode": "5204719503615", "active": true}, {"barcode": "5204719018928", "active": true}, {"barcode": "5204719018089", "active": true}, {"barcode": "5204719004723", "active": true}, {"barcode": "5204719015118", "active": true}, {"barcode": "5204719015132", "active": true}, {"barcode": "5204719018355", "active": true}, {"barcode": "5204719018607", "active": true}, {"barcode": "5204719026299", "active": true}, {"barcode": "5204719161808", "active": true}, {"barcode": "5204719163369", "active": true}, {"barcode": "5204719177069", "active": true}, {"barcode": "5204719177106", "active": true}, {"barcode": "5204719276519", "active": true}, {"barcode": "5204719276991", "active": true}, {"barcode": "5204719504001", "active": true}, {"barcode": "5204719011844", "active": true}, {"barcode": "5204719018102", "active": true}, {"barcode": "5204719018126", "active": true}, {"barcode": "5204719018539", "active": true}, {"barcode": "5204719018546", "active": true}, {"barcode": "5204719018560", "active": true}, {"barcode": "5204719018669", "active": true}, {"barcode": "5204719018942", "active": true}, {"barcode": "5204719026008", "active": true}, {"barcode": "5204719170015", "active": true}, {"barcode": "5204719177120", "active": true}, {"barcode": "5204719178066", "active": true}, {"barcode": "5204719178103", "active": true}, {"barcode": "5204719502168", "active": true}, {"barcode": "5204719503448", "active": true}, {"barcode": "5204719503608", "active": true}, {"barcode": "5204719504599", "active": true}, {"barcode": "5204719505497", "active": true}, {"barcode": "5204719504537", "active": true}, {"barcode": "5204719505473", "active": true}]}]};
+
+// ── STATE ──
+var currentStore = null;
+var order = {};
+var editingStoreIdx = null;
+var editingProductBc = null;
+var qtyBc = null;
+var qtyVal = '';
+
+// ── CUSTOM DATA ──
+function getCustomProds() { try { return JSON.parse(localStorage.getItem('os_prods') || '{}'); } catch(e) { return {}; } }
+function saveCustomProds(d) { localStorage.setItem('os_prods', JSON.stringify(d)); }
+function getOverrides() { try { return JSON.parse(localStorage.getItem('os_ovr') || '{}'); } catch(e) { return {}; } }
+function saveOverrides(d) { localStorage.setItem('os_ovr', JSON.stringify(d)); }
+function getCustomStores() { try { return JSON.parse(localStorage.getItem('os_cstores') || '[]'); } catch(e) { return []; } }
+function saveCustomStores(d) { localStorage.setItem('os_cstores', JSON.stringify(d)); }
+
+function allProds() { return Object.assign({}, DB.products, getCustomProds()); }
+
+function getEffectiveActive(storeIdx, bc, orig) {
+  var ovr = getOverrides();
+  var k = storeIdx + '_' + bc;
+  return k in ovr ? ovr[k] : orig;
+}
+
+function getStoreProducts(storeIdx) {
+  var s = DB.stores[storeIdx];
+  if (!s) return Object.keys(DB.products);
+  var ap = s.allProducts || s.products.map(function(bc) { return {barcode: bc, active: true}; });
+  var ovr = getOverrides();
+  return ap.filter(function(p) { return getEffectiveActive(storeIdx, p.barcode, p.active); }).map(function(p) { return p.barcode; });
+}
+
+// ── NAV ──
+function go(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  if (id === 's-stores') renderStores();
+  if (id === 's-products') renderProducts();
+  if (id === 's-mixture') renderMixture();
+}
+
+function goHome() {
+  stopScanner();
+  currentStore = null;
+  order = {};
+  renderHomeGrid();
+  go('s-home');
+}
+
+// ── HOME ──
+var ICONS = ['🏪','🛒','🏬','🏢','🏡','🏨','🛍️','🏭','🏤','🏦','🍽️','🏪','🏬','🛒'];
+
+function getAllStores() {
+  var builtin = DB.stores.map(function(s, i) {
+    return { name: s.name, email: 'info.olivesecret@gmail.com', builtin: true, idx: i };
+  });
+  return builtin.concat(getCustomStores());
+}
+
+function renderHomeGrid() {
+  var stores = getAllStores();
+  var grid = document.getElementById('store-grid');
+  grid.innerHTML = stores.map(function(s, i) {
+    var count = s.builtin ? getStoreProducts(s.idx).length : Object.keys(allProds()).length;
+    return '<div class="store-card" onclick="startSession(' + i + ')"><div class="sc-icon">' + ICONS[i % ICONS.length] + '</div><div class="sc-name">' + s.name + '</div><div class="sc-count">' + count + ' προϊόντα</div></div>';
+  }).join('');
+}
+
+// ── SESSION ──
+function startSession(i) {
+  var stores = getAllStores();
+  currentStore = stores[i];
+  currentStore._listIdx = i;
+  order = {};
+  document.getElementById('scan-lbl').textContent = currentStore.name;
+  document.getElementById('scan-store-name').textContent = currentStore.name;
+  updateOrderUI();
+  go('s-scan');
+  startScanner();
+}
+
+// ── SCANNER ──
+var scanRunning = false, lastCode = '', lastTime = 0;
+
+function startScanner() {
+  if (scanRunning) return;
+  Quagga.init({
+    inputStream: { name: 'Live', type: 'LiveStream', target: document.getElementById('scanner-container'), constraints: { facingMode: 'environment', width: {ideal:1280}, height: {ideal:720} } },
+    locator: { patchSize: 'medium', halfSample: true },
+    numOfWorkers: 2, frequency: 10,
+    decoder: { readers: ['ean_reader','ean_8_reader','code_128_reader','code_39_reader'] },
+    locate: true
+  }, function(err) {
+    if (err) { notify('Σφάλμα κάμερας', 'err'); return; }
+    Quagga.start(); scanRunning = true;
+  });
+  Quagga.onDetected(function(r) {
+    var code = r.codeResult.code, now = Date.now();
+    if (code === lastCode && now - lastTime < 2000) return;
+    lastCode = code; lastTime = now;
+    document.getElementById('scan-flash').classList.add('flash');
+    setTimeout(function() { document.getElementById('scan-flash').classList.remove('flash'); }, 120);
+    handleScan(code);
+  });
+}
+
+function stopScanner() {
+  if (!scanRunning) return;
+  Quagga.stop(); scanRunning = false; lastCode = '';
+}
+
+function handleScan(bc) {
+  var prods = allProds();
+  var p = prods[bc], mbc = bc;
+  if (!p) {
+    var t = bc.replace(/^0+/, '');
+    for (var k in prods) { if (k === t || k.replace(/^0+/,'') === t) { p = prods[k]; mbc = k; break; } }
+  }
+  if (!p) { notify('Άγνωστο barcode: ' + bc, 'err'); return; }
+  openQtyModal(mbc, p);
+}
+
+// ── ORDER UI ──
+function updateOrderUI() {
+  var items = Object.entries(order);
+  var total = items.reduce(function(s,x) { return s + x[1]; }, 0);
+  document.getElementById('scan-count').textContent = items.length + ' προϊόντα · ' + total + ' τεμ.';
+  var list = document.getElementById('order-list');
+  if (items.length === 0) {
+    list.innerHTML = '<div class="order-empty"><div class="oe-icon">📦</div><p>Σκανάρισε προϊόντα<br>για να ξεκινήσεις</p></div>';
+    return;
+  }
+  var prods = allProds();
+  list.innerHTML = items.map(function(x) {
+    var bc = x[0], qty = x[1], p = prods[bc] || {name: bc, code:'—'};
+    return '<div class="order-item"><div class="oi-info"><div class="oi-name">' + p.name + '</div><div class="oi-code">' + p.code + ' · ' + bc + '</div></div><div class="oi-qty"><button class="oi-qty-btn" onclick="chQty(\'' + bc + '\',-1)">−</button><div class="oi-qty-val">' + qty + '</div><button class="oi-qty-btn" onclick="chQty(\'' + bc + '\',1)">＋</button></div><button class="oi-del" onclick="delItem(\'' + bc + '\')">✕</button></div>';
+  }).join('');
+}
+
+function chQty(bc, d) {
+  var n = Math.max(0, (order[bc] || 0) + d);
+  if (n === 0) delete order[bc]; else order[bc] = n;
+  updateOrderUI();
+}
+
+function delItem(bc) { delete order[bc]; updateOrderUI(); }
+
+function switchTab(t) {
+  var ol = document.getElementById('order-list'), sl = document.getElementById('store-list');
+  var bt1 = document.getElementById('tab-order-btn'), bt2 = document.getElementById('tab-list-btn');
+  if (t === 'order') {
+    ol.style.display = 'block'; sl.style.display = 'none';
+    bt1.classList.add('active'); bt2.classList.remove('active');
+  } else {
+    ol.style.display = 'none'; sl.style.display = 'block';
+    bt1.classList.remove('active'); bt2.classList.add('active');
+    renderStoreList();
+  }
+}
+
+function renderStoreList() {
+  if (!currentStore) return;
+  var prods = allProds();
+  var barcodes = currentStore.builtin ? getStoreProducts(currentStore.idx) : Object.keys(DB.products);
+  var el = document.getElementById('store-list');
+  if (barcodes.length === 0) { el.innerHTML = '<div class="order-empty"><div class="oe-icon">📦</div><p>Κανένα προϊόν</p></div>'; return; }
+  el.innerHTML = barcodes.map(function(bc) {
+    var p = prods[bc] || {name:bc, code:'—'};
+    var inOrd = order[bc] ? ' <span style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px">×' + order[bc] + '</span>' : '';
+    return '<div class="list-item" onclick="openQtyModal(\'' + bc + '\',allProds()[\'' + bc + '\']||{name:\'' + p.name.replace(/'/g,"\'") + '\',code:\'' + p.code + '\'})" style="cursor:pointer"><div class="li-info"><div class="li-name">' + p.name + inOrd + '</div><div class="li-sub">' + p.code + ' · ' + bc + '</div></div><div style="color:var(--t3)">›</div></div>';
+  }).join('');
+}
+
+// ── QTY MODAL ──
+function openQtyModal(bc, p) {
+  qtyBc = bc; qtyVal = order[bc] ? String(order[bc]) : '';
+  document.getElementById('qty-name').textContent = p.name;
+  document.getElementById('qty-code').textContent = (p.code || '') + ' · ' + bc;
+  document.getElementById('qty-display').textContent = qtyVal || '0';
+  openModal('m-qty');
+}
+
+function qk(k) {
+  if (k === 'del') qtyVal = qtyVal.slice(0,-1);
+  else if (k === 'clr') qtyVal = '';
+  else { if (qtyVal.length >= 4) return; qtyVal += k; }
+  document.getElementById('qty-display').textContent = qtyVal || '0';
+}
+
+function confirmQty() {
+  var q = parseInt(qtyVal) || 0;
+  if (q === 0) delete order[qtyBc]; else order[qtyBc] = q;
+  closeModal('m-qty');
+  updateOrderUI();
+  var p = allProds()[qtyBc];
+  notify('✓ ' + (p ? p.name.substring(0,20) : qtyBc) + ' × ' + q, 'ok');
+}
+
+// ── MANUAL ──
+var manualBc = null;
+function openManual() {
+  manualBc = null;
+  document.getElementById('manual-val').value = '';
+  document.getElementById('manual-match').style.display = 'none';
+  openModal('m-manual');
+  setTimeout(function() { document.getElementById('manual-val').focus(); }, 300);
+}
+
+function manualSearch() {
+  var v = document.getElementById('manual-val').value.trim();
+  var prods = allProds();
+  var found = null, fbc = null;
+  if (prods[v]) { found = prods[v]; fbc = v; }
+  if (!found) { for (var k in prods) { if (prods[k].code === v || prods[k].code === v.padStart(5,'0')) { found = prods[k]; fbc = k; break; } } }
+  var el = document.getElementById('manual-match');
+  if (found) {
+    document.getElementById('mm-name').textContent = found.name;
+    document.getElementById('mm-code').textContent = (found.code||'') + ' · ' + fbc;
+    el.dataset.bc = fbc; el.style.display = 'block'; manualBc = fbc;
+  } else { el.style.display = 'none'; manualBc = null; }
+}
+
+function confirmManual() {
+  var v = document.getElementById('manual-val').value.trim();
+  var prods = allProds();
+  var bc = manualBc || (prods[v] ? v : null);
+  if (!bc) { notify('Δεν βρέθηκε', 'err'); return; }
+  closeModal('m-manual');
+  openQtyModal(bc, prods[bc]);
+}
+
+// ── ORDER PREVIEW ──
+// ── SECTION LOGIC ──
+var SECS={elaiolado:{l:'ΕΛΑΙΟΛΑΔΟ',i:'🫒'},elies:{l:'ΕΛΙΕΣ',i:'🍈'},mpaxarika:{l:'ΜΠΑΧΑΡΙΚΑ/ΒΟΤΑΝΑ/ΣΕΤ',i:'🌿'},metapoiisi:{l:'ΣΥΣΚΕΥΑΣΙΑ/ΓΛΥΚΑ/ΣΑΠΟΥΝΙ',i:'🏭'}};
+function detectSec(n){n=(n||'').toUpperCase();if(/ΕΛΑΙΟΛΑΔ|OLIVE OIL/.test(n)&&!/ΣΑΠΟΥΝ/.test(n))return'elaiolado';if(/ΕΛΙΕ|ΚΑΛΑΜΩΝ|ΠΡΑΣΙΝ|ΠΙΚΑΝΤ/.test(n))return'elies';if(/ΣΑΠΟΥΝ|ΧΑΛΒ|ΜΠΑΚΛ|ΜΑΝΤΟΛ|ΜΕΛΕΚ|ΚΑΡΑΜ|ΛΟΥΚ|ΣΙΡΟΠ/.test(n))return'metapoiisi';if(/ΜΠΑΧΑΡ|ΒΟΤΑΝ|ΡΙΓΑΝΗ|ΔΙΚΤΑΜ|ΤΣΑΙ|ΣΕΤ|ΜΕΙΓΜΑ|ΠΙΠΕΡ|ΑΛΑΤ|MIX/.test(n))return'mpaxarika';return'';}
+function getProdSec(bc,p){var c=getCustomProds();if(c[bc]&&c[bc].section)return c[bc].section;return detectSec((p||{}).name||'');}
+function getSecEmails(){try{return JSON.parse(localStorage.getItem('os_se')||'{}');}catch(e){return{};}}
+function saveSecEmails(d){localStorage.setItem('os_se',JSON.stringify(d));}
+var pendEM=[];
+function openPreview(){
+  var items=Object.entries(order);
+  if(!items.length){notify('Δεν έχεις σκανάρει τίποτα','err');return;}
+  var prods=allProds();
+  var date=new Date().toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var time=new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+  var stored=getSecEmails();
+  var groups={},noSec=[];
+  items.forEach(function(x){
+    var bc=x[0],qty=x[1],p=prods[bc]||{name:bc,code:'--'};
+    var sec=getProdSec(bc,p);
+    if(sec){if(!groups[sec])groups[sec]=[];groups[sec].push({bc:bc,qty:qty,p:p});}
+    else noSec.push({bc:bc,qty:qty,p:p});
+  });
+  var totalQty=items.reduce(function(s,x){return s+x[1];},0);
+  var sub='Παραγγελία '+currentStore.name+' - '+date;
+  pendEM=[];
+  Object.keys(groups).forEach(function(sec){
+    var s=SECS[sec];
+    var body=s.i+' '+s.l+'\nΚατάστημα: '+currentStore.name+'\n'+date+' '+time+'\n'+'-'.repeat(28)+'\n';
+    var tot=0;
+    groups[sec].forEach(function(it){body+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';tot+=it.qty;});
+    body+='-'.repeat(28)+'\nΣΥΝΟΛΟ: '+groups[sec].length+' ειδη / '+tot+' τεμ.';
+    pendEM.push({sec:sec,lbl:s.i+' '+s.l,email:stored[sec]||'',sub:sub+' ['+s.l+']',body:body});
+  });
+  var bk='BACKUP - '+currentStore.name+'\n'+date+' '+time+'\n'+'='.repeat(28)+'\n';
+  Object.keys(groups).forEach(function(sec){var s=SECS[sec];bk+='\n'+s.i+' '+s.l+'\n';groups[sec].forEach(function(it){bk+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';});});
+  if(noSec.length){bk+='\nCHWRIS TMHMA\n';noSec.forEach(function(it){bk+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';});}
+  bk+='='.repeat(28)+'\nΣΥΝΟΛΟ: '+items.length+' ειδη / '+totalQty+' τεμ.';
+  pendEM.push({sec:'bk',lbl:'📋 Backup',email:stored['bk']||'info.olivesecret@gmail.com',sub:sub+' [BACKUP]',body:bk});
+  var html='<div class="modal-handle"></div><div class="modal-title">📧 Αποστολή</div><div class="modal-sub">'+currentStore.name+' · '+date+'</div><div style="margin:12px 0;max-height:50vh;overflow-y:auto">';
+  pendEM.forEach(function(em,i){
+    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">';
+    html+='<div style="font-size:0.82rem;font-weight:700;margin-bottom:8px">'+em.lbl+'</div>';
+    html+='<div style="display:flex;gap:6px"><input type="email" id="pem'+i+'" value="'+em.email+'" placeholder="email@..." style="flex:1;padding:9px 11px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.82rem;outline:none">';
+    html+='<button onclick="svEM('+i+')" style="padding:9px 12px;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t2);font-size:0.75rem;font-weight:700;cursor:pointer">💾</button></div></div>';
+  });
+  html+='</div><div class="field"><label>Σημείωση</label><textarea id="ord-note" placeholder="π.χ. Παράδοση Παρασκευή..." style="width:100%;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.85rem;outline:none;resize:none;height:56px"></textarea></div>';
+  html+='<div class="btn-row"><button class="btn btn-secondary" onclick="closeModal(\'m-order\')">Πίσω</button><button class="btn btn-primary" onclick="sendEM()">📧 Αποστολή Όλων</button></div>';
+  document.getElementById('m-order-inner').innerHTML=html;
+  openModal('m-order');
+}
+function svEM(i){var v=document.getElementById('pem'+i).value.trim();pendEM[i].email=v;var s=getSecEmails();s[pendEM[i].sec]=v;saveSecEmails(s);notify('Αποθηκεύτηκε ✓','ok');}
+function sendEM(){
+  var note=(document.getElementById('ord-note')||{value:''}).value.trim();
+  var ts=pendEM.filter(function(e){return e.email;});
+  if(!ts.length){notify('Βάλε τουλάχιστον ένα email','err');return;}
+  closeModal('m-order');
+  ts.forEach(function(em,i){setTimeout(function(){window.open('mailto:'+em.email+'?subject='+encodeURIComponent(em.sub)+'&body='+encodeURIComponent(em.body+(note?'\n\nΣΗΜΕΙΩΣΗ: '+note:'')),'_blank');},i*700);});
+  notify('Ανοίγουν '+ts.length+' emails...','ok');
+}
+
+// ── STORES ──
+var editingStoreId = null;
+
+function renderStores() {
+  var customs = getCustomStores();
+  var el = document.getElementById('stores-list');
+  var builtin = DB.stores.map(function(s, i) {
+    return '<div class="list-item"><div class="li-info"><div class="li-name">' + s.name + ' <span style="font-size:0.65rem;color:var(--t3)">(ενσωματωμένο)</span></div><div class="li-sub">' + getStoreProducts(i).length + ' ενεργά προϊόντα</div></div></div>';
+  }).join('');
+  var custom = customs.map(function(s, i) {
+    return '<div class="list-item"><div class="li-info"><div class="li-name">' + s.name + '</div><div class="li-sub">' + (s.email||'Χωρίς email') + '</div></div><div class="li-actions"><button class="li-btn" onclick="openEditStore(' + i + ')">✎</button><button class="li-btn" onclick="deleteStore(' + i + ')" style="color:var(--warn)">✕</button></div></div>';
+  }).join('');
+  el.innerHTML = builtin + (custom ? '<div class="gap-sm"></div><div class="sec-title">Custom</div>' + custom : '');
+}
+
+function openAddStore() {
+  editingStoreId = null;
+  document.getElementById('store-modal-title').textContent = 'Νέο Κατάστημα';
+  ['st-name','st-email','st-addr','st-phone','st-notes'].forEach(function(id) { document.getElementById(id).value = ''; });
+  closeModal('m-order');
+  openModal('m-store');
+}
+
+function openEditStore(i) {
+  editingStoreId = i;
+  var s = getCustomStores()[i];
+  document.getElementById('store-modal-title').textContent = 'Επεξεργασία';
+  document.getElementById('st-name').value = s.name;
+  document.getElementById('st-email').value = s.email||'';
+  document.getElementById('st-addr').value = s.address||'';
+  document.getElementById('st-phone').value = s.phone||'';
+  document.getElementById('st-notes').value = s.notes||'';
+  openModal('m-store');
+}
+
+function saveStore() {
+  var name = document.getElementById('st-name').value.trim();
+  if (!name) { notify('Βάλε όνομα', 'err'); return; }
+  var data = { name:name, email:document.getElementById('st-email').value.trim(), address:document.getElementById('st-addr').value.trim(), phone:document.getElementById('st-phone').value.trim(), notes:document.getElementById('st-notes').value.trim() };
+  var customs = getCustomStores();
+  if (editingStoreId !== null) customs[editingStoreId] = data; else customs.push(data);
+  saveCustomStores(customs);
+  closeModal('m-store');
+  renderHomeGrid();
+  renderStores();
+  notify('Αποθηκεύτηκε', 'ok');
+}
+
+function deleteStore(i) {
+  var customs = getCustomStores();
+  if (!confirm('Διαγραφή "' + customs[i].name + '";')) return;
+  customs.splice(i,1);
+  saveCustomStores(customs);
+  renderStores();
+  renderHomeGrid();
+}
+
+// ── PRODUCTS ──
+function renderProducts() {
+  var search = document.getElementById('prod-search').value.toLowerCase();
+  var prods = allProds();
+  var custom = getCustomProds();
+  var items = Object.entries(prods).filter(function(x) {
+    return !search || x[0].includes(search) || x[1].name.toLowerCase().includes(search) || x[1].code.toLowerCase().includes(search);
+  });
+  var el = document.getElementById('prod-list');
+  if (items.length === 0) { el.innerHTML = '<p style="color:var(--t2);text-align:center;padding:20px">Δεν βρέθηκαν</p>'; return; }
+  el.innerHTML = items.map(function(x) {
+    var bc = x[0], p = x[1], isc = !!custom[bc];
+    return '<div class="list-item"><div class="li-info"><div class="li-name">' + p.name + (isc?' <span style="font-size:0.65rem;background:var(--blue);color:#fff;padding:2px 5px;border-radius:4px">CUSTOM</span>':'') + '</div><div class="li-sub">' + p.code + ' · ' + bc + '</div></div><div class="li-actions"><button class="li-btn" onclick="openEditProduct(\'' + bc + '\')">✎</button>' + (isc?'<button class="li-btn" onclick="deleteProduct(\'' + bc + '\')" style="color:var(--warn)">✕</button>':'') + '</div></div>';
+  }).join('');
+}
+
+function openAddProduct() {
+  editingProductBc = null;
+  document.getElementById('prod-modal-title').textContent = 'Νέο Προϊόν';
+  ['pr-barcode','pr-code','pr-name'].forEach(function(id) { document.getElementById(id).value=''; });
+  document.getElementById('pr-barcode').disabled = false;
+  document.getElementById('pr-section').value='';
+  openModal('m-product');
+}
+
+function openEditProduct(bc) {
+  editingProductBc = bc;
+  var p = allProds()[bc];
+  document.getElementById('prod-modal-title').textContent = 'Επεξεργασία';
+  document.getElementById('pr-barcode').value = bc;
+  document.getElementById('pr-barcode').disabled = true;
+  document.getElementById('pr-code').value = p.code||'';
+  document.getElementById('pr-name').value = p.name||'';
+  var _c=getCustomProds();var _s=(_c[bc]&&_c[bc].section)?_c[bc].section:detectSec(p.name||'');document.getElementById('pr-section').value=_s||'';
+  openModal('m-product');
+}
+
+function saveProduct() {
+  var bc = editingProductBc || document.getElementById('pr-barcode').value.trim();
+  var name = document.getElementById('pr-name').value.trim();
+  if (!bc || !name) { notify('Συμπλήρωσε barcode και περιγραφή', 'err'); return; }
+  var custom = getCustomProds();
+  custom[bc] = { code: document.getElementById('pr-code').value.trim(), name: name, section: document.getElementById('pr-section').value };
+  saveCustomProds(custom);
+  closeModal('m-product');
+  renderProducts();
+  notify('Αποθηκεύτηκε', 'ok');
+}
+
+function deleteProduct(bc) {
+  if (!confirm('Διαγραφή;')) return;
+  var c = getCustomProds(); delete c[bc]; saveCustomProds(c);
+  renderProducts();
+}
+
+// ── MIXTURE ──
+function renderMixture() {
+  var prods = allProds();
+  var ovr = getOverrides();
+  var el = document.getElementById('mixture-list');
+  el.innerHTML = DB.stores.map(function(s, si) {
+    var ap = s.allProducts || s.products.map(function(bc) { return {barcode:bc,active:true}; });
+    var activeCount = ap.filter(function(p) { return getEffectiveActive(si, p.barcode, p.active); }).length;
+    var rows = ap.map(function(p) {
+      var bc = p.barcode, origActive = p.active;
+      var eff = getEffectiveActive(si, bc, origActive);
+      var pr = prods[bc] || {name:bc,code:'—'};
+      return '<div class="mix-row ' + (eff?'active-row':'inactive-row') + '" onclick="toggleMix(' + si + ',\'' + bc + '\',' + (origActive?'true':'false') + ')">' +
+        '<div style="font-family:var(--m);font-size:0.68rem;color:var(--t2);min-width:42px">' + pr.code + '</div>' +
+        '<div style="font-size:0.82rem;flex:1;' + (eff?'color:var(--text)':'color:var(--t2)') + '">' + pr.name + '</div>' +
+        '<div class="toggle ' + (eff?'on':'off') + '"><div class="toggle-dot"></div></div></div>';
+    }).join('');
+    return '<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px"><div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div style="font-size:0.85rem;font-weight:700">' + s.name + '</div><div style="font-size:0.72rem;font-family:var(--m);color:var(--accent)">' + activeCount + ' / ' + ap.length + '</div></div>' + rows + '</div>';
+  }).join('');
+}
+
+function toggleMix(si, bc, orig) {
+  var ovr = getOverrides();
+  var k = si + '_' + bc;
+  var cur = getEffectiveActive(si, bc, orig);
+  ovr[k] = !cur;
+  saveOverrides(ovr);
+  renderMixture();
+}
+
+// ── EXPORT / IMPORT ──
+function exportData() {
+  var data = { version:2, exported:new Date().toISOString(), customStores:getCustomStores(), customProds:getCustomProds(), overrides:getOverrides() };
+  var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='orderscan-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+  notify('Backup κατεβαίνει...','ok');
+}
+
+function importData(e) {
+  var file = e.target.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var d = JSON.parse(ev.target.result);
+      if (!confirm('Θα αντικατασταθούν τα δεδομένα. Συνέχεια;')) return;
+      if (d.customStores) saveCustomStores(d.customStores);
+      if (d.customProds) saveCustomProds(d.customProds);
+      if (d.overrides) saveOverrides(d.overrides);
+      renderHomeGrid();
+      notify('Import επιτυχές!','ok');
+      setTimeout(function() { go('s-home'); },1000);
+    } catch(err) { notify('Σφάλμα: '+err.message,'err'); }
+  };
+  reader.readAsText(file);
+}
+
+// ── MODALS ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(function(el) {
+  el.addEventListener('click', function(e) { if (e.target===this) this.classList.remove('open'); });
+});
+
+// ── NOTIFY ──
+var ntTimer;
+function notify(msg, type) {
+  var el = document.getElementById('notify');
+  el.textContent = msg; el.className = 'notify show ' + (type||'inf');
+  clearTimeout(ntTimer);
+  ntTimer = setTimeout(function() { el.classList.remove('show'); }, 2500);
+}
+
+// ── INIT ──
+renderHomeGrid();
+</script>
+</body>
+</html>
