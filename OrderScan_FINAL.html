@@ -748,18 +748,98 @@ function openPreview(){
   if(noSec.length){bk+='\nCHWRIS TMHMA\n';noSec.forEach(function(it){bk+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';});}
   bk+='='.repeat(28)+'\nΣΥΝΟΛΟ: '+items.length+' ειδη / '+totalQty+' τεμ.';
   pendEM.push({sec:'bk',lbl:'📋 Backup',email:stored['bk']||'info.olivesecret@gmail.com',sub:sub+' [BACKUP]',body:bk});
-  var html='<div class="modal-handle"></div><div class="modal-title">📧 Αποστολή</div><div class="modal-sub">'+currentStore.name+' · '+date+'</div><div style="margin:12px 0;max-height:50vh;overflow-y:auto">';
+  // store groups for print access
+  window._printGroups = groups;
+  window._printNoSec = noSec;
+  window._printMeta = {store: currentStore.name, date: date, time: time};
+
+  var html='<div class="modal-handle"></div><div class="modal-title">📧 Αποστολή & Εκτύπωση</div><div class="modal-sub">'+currentStore.name+' · '+date+'</div><div style="margin:12px 0;max-height:52vh;overflow-y:auto">';
   pendEM.forEach(function(em,i){
+    var isPrint = em.sec !== 'bk';
     html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">';
-    html+='<div style="font-size:0.82rem;font-weight:700;margin-bottom:8px">'+em.lbl+'</div>';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+    html+='<div style="font-size:0.82rem;font-weight:700">'+em.lbl+'</div>';
+    if(isPrint){
+      html+='<button onclick="printSection(\''+em.sec+'\')" style="padding:5px 10px;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.35);border-radius:7px;color:var(--blue);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">🖨️ Print</button>';
+    }
+    html+='</div>';
     html+='<div style="display:flex;gap:6px"><input type="email" id="pem'+i+'" value="'+em.email+'" placeholder="email@..." style="flex:1;padding:9px 11px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.82rem;outline:none">';
     html+='<button onclick="svEM('+i+')" style="padding:9px 12px;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t2);font-size:0.75rem;font-weight:700;cursor:pointer">💾</button></div></div>';
   });
-  html+='</div><div class="field"><label>Σημείωση</label><textarea id="ord-note" placeholder="π.χ. Παράδοση Παρασκευή..." style="width:100%;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.85rem;outline:none;resize:none;height:56px"></textarea></div>';
+  html+='</div>';
+  // Print all sections button
+  html+='<button onclick="printAllSections()" style="width:100%;padding:11px;background:rgba(56,139,253,0.12);border:1px solid rgba(56,139,253,0.3);border-radius:9px;color:var(--blue);font-size:0.85rem;font-weight:700;cursor:pointer;margin-bottom:10px">🖨️ Εκτύπωση Όλων των Τμημάτων</button>';
+  html+='<div class="field"><label>Σημείωση</label><textarea id="ord-note" placeholder="π.χ. Παράδοση Παρασκευή..." style="width:100%;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.85rem;outline:none;resize:none;height:52px"></textarea></div>';
   html+='<div class="btn-row"><button class="btn btn-secondary" onclick="closeModal(\'m-order\')">Πίσω</button><button class="btn btn-primary" onclick="sendEM()">📧 Αποστολή Όλων</button></div>';
   document.getElementById('m-order-inner').innerHTML=html;
   openModal('m-order');
 }
+
+function buildPrintHTML(secKeys, title){
+  var groups = window._printGroups || {};
+  var m = window._printMeta || {};
+  var rows = '';
+  var grandTotal = 0, grandItems = 0;
+  secKeys.forEach(function(sec){
+    if(!groups[sec]) return;
+    var s = SECS[sec];
+    var secTotal = 0;
+    rows += '<div class="sec-block"><div class="sec-header">'+s.i+' '+s.l+'</div>';
+    rows += '<table><thead><tr><th style="width:52px">Κωδ.</th><th>Προϊόν</th><th style="width:44px;text-align:center">Τεμ.</th></tr></thead><tbody>';
+    groups[sec].forEach(function(it){
+      rows += '<tr><td class="mono">'+it.p.code+'</td><td>'+it.p.name+'</td><td style="text-align:center;font-weight:800">'+it.qty+'</td></tr>';
+      secTotal += it.qty;
+    });
+    rows += '</tbody></table>';
+    rows += '<div class="sec-foot">'+groups[sec].length+' είδη &nbsp;|&nbsp; '+secTotal+' τεμ. σύνολο</div></div>';
+    grandTotal += secTotal; grandItems += groups[sec].length;
+  });
+  var noSec = window._printNoSec || [];
+  if(noSec.length && secKeys.length > 1){
+    rows += '<div class="sec-block"><div class="sec-header">— Χωρίς τμήμα</div><table><thead><tr><th>Κωδ.</th><th>Προϊόν</th><th style="text-align:center">Τεμ.</th></tr></thead><tbody>';
+    noSec.forEach(function(it){ rows += '<tr><td class="mono">'+it.p.code+'</td><td>'+it.p.name+'</td><td style="text-align:center;font-weight:800">'+it.qty+'</td></tr>'; grandTotal+=it.qty; grandItems++; });
+    rows += '</tbody></table></div>';
+  }
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title><style>'+
+    '*{box-sizing:border-box;margin:0;padding:0}'+
+    'body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;color:#111;background:#fff;padding:14px 18px}'+
+    'h1{font-size:15px;font-weight:800;margin-bottom:2px}'+
+    '.meta{font-size:11px;color:#555;margin-bottom:14px}'+
+    '.sec-block{margin-bottom:18px;page-break-inside:avoid}'+
+    '.sec-header{font-size:13px;font-weight:800;background:#f0f0f0;padding:5px 8px;border-radius:4px;margin-bottom:6px}'+
+    'table{width:100%;border-collapse:collapse}'+
+    'th{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;border-bottom:2px solid #ddd;padding:4px 6px;text-align:left}'+
+    'td{padding:5px 6px;border-bottom:1px solid #eee;font-size:11.5px;vertical-align:top}'+
+    'tr:last-child td{border-bottom:none}'+
+    '.mono{font-family:monospace;font-size:11px;color:#555}'+
+    '.sec-foot{font-size:10px;color:#777;text-align:right;margin-top:4px;padding-right:4px}'+
+    '.grand{font-size:12px;font-weight:800;border-top:2px solid #111;padding-top:8px;margin-top:6px;text-align:right}'+
+    '@media print{body{padding:6px 10px}button{display:none!important}.no-print{display:none!important}}'+
+    '</style></head><body>'+
+    '<h1>'+title+'</h1>'+
+    '<div class="meta">'+m.store+' &nbsp;·&nbsp; '+m.date+' '+m.time+'</div>'+
+    rows+
+    (secKeys.length>1?'<div class="grand">ΣΥΝΟΛΟ: '+grandItems+' είδη / '+grandTotal+' τεμ.</div>':'')+
+    '<div class="no-print" style="margin-top:20px;text-align:center"><button onclick="window.print()" style="padding:10px 28px;background:#2ea043;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">🖨️ Εκτύπωση</button></div>'+
+    '</body></html>';
+}
+
+function printSection(sec){
+  var s = SECS[sec];
+  var w = window.open('','_blank','width=700,height=700');
+  w.document.write(buildPrintHTML([sec], s.i+' '+s.l+' — '+(window._printMeta||{}).store));
+  w.document.close();
+}
+
+function printAllSections(){
+  var groups = window._printGroups || {};
+  var secKeys = Object.keys(groups);
+  if(!secKeys.length){ notify('Δεν υπάρχουν τμήματα','err'); return; }
+  var w = window.open('','_blank','width=750,height=800');
+  w.document.write(buildPrintHTML(secKeys, 'Παραγγελία — '+(window._printMeta||{}).store));
+  w.document.close();
+}
+
 function svEM(i){var v=document.getElementById('pem'+i).value.trim();pendEM[i].email=v;var s=getSecEmails();s[pendEM[i].sec]=v;saveSecEmails(s);notify('Αποθηκεύτηκε ✓','ok');}
 function sendEM(){
   var note=(document.getElementById('ord-note')||{value:''}).value.trim();
