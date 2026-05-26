@@ -113,6 +113,18 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100d
 .upload-area{border:2px dashed var(--border);border-radius:var(--r);padding:28px 16px;text-align:center;cursor:pointer;background:var(--s2);position:relative}
 .upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;background:none;border:none;padding:0}
 
+/* VARIANTS */
+.variant-item{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:13px 16px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.15s}
+.variant-item:active{background:var(--s3);transform:scale(0.98)}
+.variant-item .vi-name{font-size:0.9rem;font-weight:600}
+.variant-item .vi-arrow{color:var(--accent);font-size:1.1rem;font-weight:800}
+.variant-badge{display:inline-block;background:rgba(56,139,253,0.15);color:var(--blue);border:1px solid rgba(56,139,253,0.3);font-size:0.62rem;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+/* Variants edit list */
+.vlist-item{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.vlist-item input{flex:1;padding:9px 11px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.85rem;outline:none}
+.vlist-item input:focus{border-color:var(--blue)}
+.vlist-del{width:30px;height:30px;border-radius:8px;border:none;background:var(--wl);color:var(--warn);font-size:0.85rem;cursor:pointer;flex-shrink:0}
+
 /* MIXTURE */
 .mix-row{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;cursor:pointer}
 .mix-row.active-row{background:rgba(46,160,67,0.08);border-left:3px solid var(--accent)}
@@ -221,6 +233,18 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100d
   </div>
 </div>
 
+<!-- MODAL: VARIANT SELECT -->
+<div class="modal-bg" id="m-variant">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="var-name"></div>
+    <div class="modal-sub" id="var-code"></div>
+    <div id="var-list" style="margin-bottom:4px"></div>
+    <div class="gap-sm"></div>
+    <button class="btn btn-secondary" onclick="closeModal('m-variant')">Ακύρωση</button>
+  </div>
+</div>
+
 <!-- MODAL: QTY -->
 <div class="modal-bg" id="m-qty">
   <div class="modal">
@@ -287,6 +311,19 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100d
     <div class="field"><label>Κωδικός</label><input type="text" id="pr-code" placeholder="00476"></div>
     <div class="field"><label>Περιγραφή *</label><input type="text" id="pr-name" placeholder="ΕΛΑΙΟΛΑΔΟ 1.5L"></div>
     <div class="field"><label>Τμήμα</label><select id="pr-section" style="width:100%;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.88rem;outline:none"><option value="">— Αυτόματο —</option><option value="elaiolado">🫒 Ελαιόλαδο</option><option value="elies">🍈 Ελιές</option><option value="mpaxarika">🌿 Μπαχαρικά / Βότανα / Σετ Δώρου</option><option value="metapoiisi">🏭 Συσκευασία / Γλυκά / Σαπούνι</option></select></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;justify-content:space-between">
+        <span>Παραλλαγές (γεύσεις / τύποι)</span>
+        <div id="pr-var-toggle" onclick="toggleVariantEdit()" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <div id="pr-var-tog-box" class="toggle off" style="width:34px;height:20px"><div class="toggle-dot" style="width:14px;height:14px;top:2px"></div></div>
+          <span id="pr-var-tog-lbl" style="font-size:0.72rem;color:var(--t2)">Όχι</span>
+        </div>
+      </label>
+      <div id="pr-var-editor" style="display:none;margin-top:10px">
+        <div id="pr-var-list"></div>
+        <button type="button" onclick="addVariantField()" class="btn btn-secondary btn-sm" style="margin-top:4px">＋ Προσθήκη παραλλαγής</button>
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('m-product')">Ακύρωση</button>
       <button class="btn btn-primary" onclick="saveProduct()">Αποθήκευση</button>
@@ -311,6 +348,124 @@ var editingStoreIdx = null;
 var editingProductBc = null;
 var qtyBc = null;
 var qtyVal = '';
+
+// ── VARIANTS ──
+var DEFAULT_VARIANTS = {
+  '5204719276991': ['ΦΙΣΤΙΚΙ ΑΙΓΙΝΗΣ','ΑΜΥΓΔΑΛΟ','ΦΟΥΝΤΟΥΚΙ','ΚΑΡΥΔΙ','ΣΤΑΦΙΔΑ'],
+  '5204719502168': ['ΜΕΛΙ','ΘΥΜΑΡΙ','ΒΑΝΙΛΙΑ','ΠΟΡΤΟΚΑΛΙ','ΛΕΜΟΝΙ','ΜΑΣΤΙΧΑ'],
+  '5204719161808': ['ΣΚΕΤΟ ΕΛΑΙΟΛΑΔΟ','ΛΕΒΑΝΤΑ','ΤΡΙΑΝΤΑΦΥΛΛΟ','ΧΑΜΟΜΗΛΙ','ΠΕΥΚΟ']
+};
+
+function getVariants() {
+  try { return JSON.parse(localStorage.getItem('os_variants') || '{}'); } catch(e) { return {}; }
+}
+function saveVariants(d) { localStorage.setItem('os_variants', JSON.stringify(d)); }
+
+// Initialize default variants if not set
+(function() {
+  var v = getVariants();
+  var changed = false;
+  Object.keys(DEFAULT_VARIANTS).forEach(function(bc) {
+    if (!v[bc]) { v[bc] = DEFAULT_VARIANTS[bc]; changed = true; }
+  });
+  if (changed) saveVariants(v);
+})();
+
+function getProductVariants(bc) {
+  var v = getVariants();
+  return v[bc] && v[bc].length ? v[bc] : null;
+}
+
+// Variant modal — opens before qty modal
+var variantPendingBc = null;
+function openVariantModal(bc, p) {
+  variantPendingBc = bc;
+  document.getElementById('var-name').textContent = p.name;
+  document.getElementById('var-code').textContent = (p.code||'') + ' · ' + bc;
+  var variants = getProductVariants(bc);
+  var listEl = document.getElementById('var-list');
+  listEl.innerHTML = variants.map(function(v) {
+    return '<div class="variant-item" onclick="selectVariant(\'' + bc + '\',\'' + v.replace(/'/g,"\\'") + '\')">' +
+      '<span class="vi-name">' + v + '</span><span class="vi-arrow">›</span></div>';
+  }).join('');
+  openModal('m-variant');
+}
+
+function selectVariant(bc, variant) {
+  closeModal('m-variant');
+  var prods = allProds();
+  var p = prods[bc] || {name: bc, code: '—'};
+  // Create a temp product object with the variant name for the qty modal display
+  var displayP = { name: p.name + '  [' + variant + ']', code: p.code };
+  // Store variant selection in order key as bc + '||' + variant
+  var orderKey = bc + '||' + variant;
+  openQtyModalWithKey(orderKey, bc, displayP);
+}
+
+function openQtyModalWithKey(orderKey, bc, p) {
+  qtyBc = orderKey;
+  qtyVal = order[orderKey] ? String(order[orderKey]) : '';
+  document.getElementById('qty-name').textContent = p.name;
+  document.getElementById('qty-code').textContent = (p.code || '') + ' · ' + bc;
+  document.getElementById('qty-display').textContent = qtyVal || '0';
+  openModal('m-qty');
+}
+
+// ── VARIANT EDITOR (in product modal) ──
+var variantEditActive = false;
+
+function toggleVariantEdit() {
+  variantEditActive = !variantEditActive;
+  var box = document.getElementById('pr-var-tog-box');
+  var lbl = document.getElementById('pr-var-tog-lbl');
+  var editor = document.getElementById('pr-var-editor');
+  box.className = 'toggle ' + (variantEditActive ? 'on' : 'off');
+  lbl.textContent = variantEditActive ? 'Ναι' : 'Όχι';
+  editor.style.display = variantEditActive ? 'block' : 'none';
+}
+
+function renderVariantFields(variants) {
+  var el = document.getElementById('pr-var-list');
+  el.innerHTML = (variants || []).map(function(v, i) {
+    return '<div class="vlist-item"><input type="text" id="var-f-' + i + '" value="' + v.replace(/"/g,'&quot;') + '" placeholder="π.χ. Φιστίκι Αιγίνης"><button class="vlist-del" onclick="removeVariantField(' + i + ')">✕</button></div>';
+  }).join('');
+}
+
+function addVariantField() {
+  var current = collectVariantFields();
+  current.push('');
+  renderVariantFields(current);
+  // Focus last field
+  var fields = document.querySelectorAll('#pr-var-list .vlist-item input');
+  if (fields.length) fields[fields.length-1].focus();
+}
+
+function removeVariantField(i) {
+  var current = collectVariantFields();
+  current.splice(i, 1);
+  renderVariantFields(current);
+}
+
+function collectVariantFields() {
+  var result = [];
+  var fields = document.querySelectorAll('#pr-var-list .vlist-item input');
+  fields.forEach(function(f) {
+    var v = f.value.trim();
+    if (v) result.push(v);
+  });
+  return result;
+}
+
+function setVariantEditorState(variants) {
+  variantEditActive = !!(variants && variants.length);
+  var box = document.getElementById('pr-var-tog-box');
+  var lbl = document.getElementById('pr-var-tog-lbl');
+  var editor = document.getElementById('pr-var-editor');
+  box.className = 'toggle ' + (variantEditActive ? 'on' : 'off');
+  lbl.textContent = variantEditActive ? 'Ναι' : 'Όχι';
+  editor.style.display = variantEditActive ? 'block' : 'none';
+  renderVariantFields(variants || []);
+}
 
 // ── CUSTOM DATA ──
 function getCustomProds() { try { return JSON.parse(localStorage.getItem('os_prods') || '{}'); } catch(e) { return {}; } }
@@ -424,7 +579,12 @@ function handleScan(bc) {
     for (var k in prods) { if (k === t || k.replace(/^0+/,'') === t) { p = prods[k]; mbc = k; break; } }
   }
   if (!p) { notify('Άγνωστο barcode: ' + bc, 'err'); return; }
-  openQtyModal(mbc, p);
+  var variants = getProductVariants(mbc);
+  if (variants) {
+    openVariantModal(mbc, p);
+  } else {
+    openQtyModal(mbc, p);
+  }
 }
 
 // ── ORDER UI ──
@@ -439,8 +599,13 @@ function updateOrderUI() {
   }
   var prods = allProds();
   list.innerHTML = items.map(function(x) {
-    var bc = x[0], qty = x[1], p = prods[bc] || {name: bc, code:'—'};
-    return '<div class="order-item"><div class="oi-info"><div class="oi-name">' + p.name + '</div><div class="oi-code">' + p.code + ' · ' + bc + '</div></div><div class="oi-qty"><button class="oi-qty-btn" onclick="chQty(\'' + bc + '\',-1)">−</button><div class="oi-qty-val">' + qty + '</div><button class="oi-qty-btn" onclick="chQty(\'' + bc + '\',1)">＋</button></div><button class="oi-del" onclick="delItem(\'' + bc + '\')">✕</button></div>';
+    var key = x[0], qty = x[1];
+    var parts = key.split('||');
+    var bc = parts[0], variant = parts[1] || null;
+    var p = prods[bc] || {name: bc, code:'—'};
+    var displayName = p.name + (variant ? ' <span style="color:var(--blue);font-size:0.75rem;font-weight:700">[' + variant + ']</span>' : '');
+    var escKey = key.replace(/'/g,"&#39;");
+    return '<div class="order-item"><div class="oi-info"><div class="oi-name">' + displayName + '</div><div class="oi-code">' + p.code + ' · ' + bc + '</div></div><div class="oi-qty"><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',-1)">−</button><div class="oi-qty-val">' + qty + '</div><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',1)">＋</button></div><button class="oi-del" onclick="delItem(\'' + escKey + '\')">✕</button></div>';
   }).join('');
 }
 
@@ -533,7 +698,13 @@ function confirmManual() {
   var bc = manualBc || (prods[v] ? v : null);
   if (!bc) { notify('Δεν βρέθηκε', 'err'); return; }
   closeModal('m-manual');
-  openQtyModal(bc, prods[bc]);
+  var p = prods[bc];
+  var variants = getProductVariants(bc);
+  if (variants) {
+    openVariantModal(bc, p);
+  } else {
+    openQtyModal(bc, p);
+  }
 }
 
 // ── ORDER PREVIEW ──
@@ -553,10 +724,13 @@ function openPreview(){
   var stored=getSecEmails();
   var groups={},noSec=[];
   items.forEach(function(x){
-    var bc=x[0],qty=x[1],p=prods[bc]||{name:bc,code:'--'};
+    var key=x[0],qty=x[1];
+    var parts=key.split('||'); var bc=parts[0], variant=parts[1]||null;
+    var p=prods[bc]||{name:bc,code:'--'};
+    var displayP = variant ? {name:p.name+' ['+variant+']', code:p.code} : p;
     var sec=getProdSec(bc,p);
-    if(sec){if(!groups[sec])groups[sec]=[];groups[sec].push({bc:bc,qty:qty,p:p});}
-    else noSec.push({bc:bc,qty:qty,p:p});
+    if(sec){if(!groups[sec])groups[sec]=[];groups[sec].push({bc:bc,qty:qty,p:displayP});}
+    else noSec.push({bc:bc,qty:qty,p:displayP});
   });
   var totalQty=items.reduce(function(s,x){return s+x[1];},0);
   var sub='Παραγγελία '+currentStore.name+' - '+date;
@@ -665,7 +839,8 @@ function renderProducts() {
   if (items.length === 0) { el.innerHTML = '<p style="color:var(--t2);text-align:center;padding:20px">Δεν βρέθηκαν</p>'; return; }
   el.innerHTML = items.map(function(x) {
     var bc = x[0], p = x[1], isc = !!custom[bc];
-    return '<div class="list-item"><div class="li-info"><div class="li-name">' + p.name + (isc?' <span style="font-size:0.65rem;background:var(--blue);color:#fff;padding:2px 5px;border-radius:4px">CUSTOM</span>':'') + '</div><div class="li-sub">' + p.code + ' · ' + bc + '</div></div><div class="li-actions"><button class="li-btn" onclick="openEditProduct(\'' + bc + '\')">✎</button>' + (isc?'<button class="li-btn" onclick="deleteProduct(\'' + bc + '\')" style="color:var(--warn)">✕</button>':'') + '</div></div>';
+    var hasVar = !!getProductVariants(bc);
+    return '<div class="list-item"><div class="li-info"><div class="li-name">' + p.name + (isc?' <span style="font-size:0.65rem;background:var(--blue);color:#fff;padding:2px 5px;border-radius:4px">CUSTOM</span>':'') + (hasVar?'<span class="variant-badge">ΠΑΡΑΛΛΑΓΕΣ</span>':'') + '</div><div class="li-sub">' + p.code + ' · ' + bc + '</div></div><div class="li-actions"><button class="li-btn" onclick="openEditProduct(\'' + bc + '\')">✎</button>' + (isc?'<button class="li-btn" onclick="deleteProduct(\'' + bc + '\')" style="color:var(--warn)">✕</button>':'') + '</div></div>';
   }).join('');
 }
 
@@ -675,6 +850,7 @@ function openAddProduct() {
   ['pr-barcode','pr-code','pr-name'].forEach(function(id) { document.getElementById(id).value=''; });
   document.getElementById('pr-barcode').disabled = false;
   document.getElementById('pr-section').value='';
+  setVariantEditorState([]);
   openModal('m-product');
 }
 
@@ -687,6 +863,8 @@ function openEditProduct(bc) {
   document.getElementById('pr-code').value = p.code||'';
   document.getElementById('pr-name').value = p.name||'';
   var _c=getCustomProds();var _s=(_c[bc]&&_c[bc].section)?_c[bc].section:detectSec(p.name||'');document.getElementById('pr-section').value=_s||'';
+  var existingVariants = getProductVariants(bc);
+  setVariantEditorState(existingVariants);
   openModal('m-product');
 }
 
@@ -697,6 +875,16 @@ function saveProduct() {
   var custom = getCustomProds();
   custom[bc] = { code: document.getElementById('pr-code').value.trim(), name: name, section: document.getElementById('pr-section').value };
   saveCustomProds(custom);
+  // Save variants
+  var varData = getVariants();
+  if (variantEditActive) {
+    var collected = collectVariantFields();
+    if (collected.length) varData[bc] = collected;
+    else delete varData[bc];
+  } else {
+    delete varData[bc];
+  }
+  saveVariants(varData);
   closeModal('m-product');
   renderProducts();
   notify('Αποθηκεύτηκε', 'ok');
@@ -740,7 +928,7 @@ function toggleMix(si, bc, orig) {
 
 // ── EXPORT / IMPORT ──
 function exportData() {
-  var data = { version:2, exported:new Date().toISOString(), customStores:getCustomStores(), customProds:getCustomProds(), overrides:getOverrides() };
+  var data = { version:2, exported:new Date().toISOString(), customStores:getCustomStores(), customProds:getCustomProds(), overrides:getOverrides(), variants:getVariants() };
   var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a'); a.href=url; a.download='orderscan-backup.json'; a.click();
@@ -758,6 +946,7 @@ function importData(e) {
       if (d.customStores) saveCustomStores(d.customStores);
       if (d.customProds) saveCustomProds(d.customProds);
       if (d.overrides) saveOverrides(d.overrides);
+      if (d.variants) saveVariants(d.variants);
       renderHomeGrid();
       notify('Import επιτυχές!','ok');
       setTimeout(function() { go('s-home'); },1000);
