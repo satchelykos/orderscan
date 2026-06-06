@@ -335,6 +335,17 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100d
 <div class="modal-bg" id="m-order">
   <div class="modal" id="m-order-inner" style="max-height:90vh;overflow-y:auto">
     <div class="modal-handle"></div>
+    <div class="modal-title">Παραγγελία Έτοιμη</div>
+    <div class="modal-sub" id="order-store-lbl"></div>
+    <div class="email-pre" id="order-preview"></div>
+    <div class="field"><label>Email αποστολής</label><input type="email" id="order-email" placeholder="info.olivesecret@gmail.com"></div>
+    <div class="field"><label>Ημερομηνία</label><input type="date" id="order-date"></div>
+    <div class="field"><label>Σημείωση</label><textarea id="order-note" placeholder="π.χ. Παράδοση Παρασκευή..." style="height:52px"></textarea></div>
+    <div class="btn-row" style="margin-bottom:10px">
+      <button class="btn btn-secondary" onclick="closeModal('m-order')">Πίσω</button>
+      <button class="btn btn-primary" onclick="sendEmail()">📧 Αποστολή Email</button>
+    </div>
+    <button onclick="printAllSections()" style="width:100%;padding:11px;background:rgba(56,139,253,0.12);border:1px solid rgba(56,139,253,0.3);border-radius:9px;color:var(--blue);font-size:0.85rem;font-weight:700;cursor:pointer">🖨️ Εκτύπωση Όλων</button>
   </div>
 </div>
 
@@ -651,25 +662,49 @@ function handleScan(bc) {
 }
 
 // ── ORDER UI ──
+var SEC_ORDER = ['elaiolado','elies','mpaxarika','metapoiisi'];
 function updateOrderUI() {
   var items = Object.entries(order);
   var total = items.reduce(function(s,x) { return s + x[1]; }, 0);
-  document.getElementById('scan-count').textContent = items.length + ' προϊόντα · ' + total + ' τεμ.';
+  document.getElementById('scan-count').textContent = items.length + ' είδη · ' + total + ' τεμ.';
   var list = document.getElementById('order-list');
   if (items.length === 0) {
     list.innerHTML = '<div class="order-empty"><div class="oe-icon">📦</div><p>Σκανάρισε προϊόντα<br>για να ξεκινήσεις</p></div>';
     return;
   }
   var prods = allProds();
-  list.innerHTML = items.map(function(x) {
+  // Group by section
+  var bySec = {}, noSec = [];
+  items.forEach(function(x) {
     var key = x[0], qty = x[1];
     var parts = key.split('||');
     var bc = parts[0], variant = parts[1] || null;
     var p = prods[bc] || {name: bc, code:'—'};
-    var displayName = p.name + (variant ? ' <span style="color:var(--blue);font-size:0.75rem;font-weight:700">[' + variant + ']</span>' : '');
-    var escKey = key.replace(/'/g,"&#39;");
-    return '<div class="order-item"><div class="oi-info"><div class="oi-name">' + displayName + '</div><div class="oi-code">' + p.code + ' · ' + bc + '</div></div><div class="oi-qty"><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',-1)">−</button><div class="oi-qty-val">' + qty + '</div><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',1)">＋</button></div><button class="oi-del" onclick="delItem(\'' + escKey + '\')">✕</button></div>';
-  }).join('');
+    var sec = getProdSec(bc, p);
+    var obj = {key:key, bc:bc, variant:variant, qty:qty, p:p};
+    if (sec) { if (!bySec[sec]) bySec[sec]=[]; bySec[sec].push(obj); }
+    else noSec.push(obj);
+  });
+  var html = '';
+  SEC_ORDER.forEach(function(sec) {
+    if (!bySec[sec]) return;
+    var s = SECS[sec];
+    html += '<div style="font-size:0.72rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.6px;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><span>' + s.i + ' ' + s.l + '</span><span style="font-family:var(--m);font-size:0.7rem;color:var(--t2)">' + bySec[sec].length + ' είδη</span></div>';
+    bySec[sec].forEach(function(it) {
+      var displayName = it.p.name + (it.variant ? ' <span style="color:var(--blue);font-size:0.75rem;font-weight:700">[' + it.variant + ']</span>' : '');
+      var escKey = it.key.replace(/'/g,"&#39;");
+      html += '<div class="order-item"><div class="oi-info"><div class="oi-name">' + displayName + '</div><div class="oi-code">' + it.p.code + ' · ' + it.bc + '</div></div><div class="oi-qty"><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',-1)">−</button><div class="oi-qty-val">' + it.qty + '</div><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',1)">＋</button></div><button class="oi-del" onclick="delItem(\'' + escKey + '\')">✕</button></div>';
+    });
+  });
+  if (noSec.length) {
+    html += '<div style="font-size:0.72rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:0.6px;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px">— Χωρίς τμήμα</div>';
+    noSec.forEach(function(it) {
+      var displayName = it.p.name + (it.variant ? ' <span style="color:var(--blue);font-size:0.75rem;font-weight:700">[' + it.variant + ']</span>' : '');
+      var escKey = it.key.replace(/'/g,"&#39;");
+      html += '<div class="order-item"><div class="oi-info"><div class="oi-name">' + displayName + '</div><div class="oi-code">' + it.p.code + ' · ' + it.bc + '</div></div><div class="oi-qty"><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',-1)">−</button><div class="oi-qty-val">' + it.qty + '</div><button class="oi-qty-btn" onclick="chQty(\'' + escKey + '\',1)">＋</button></div><button class="oi-del" onclick="delItem(\'' + escKey + '\')">✕</button></div>';
+    });
+  }
+  list.innerHTML = html;
 }
 
 function chQty(bc, d) {
@@ -699,11 +734,33 @@ function renderStoreList() {
   var barcodes = currentStore.builtin ? getStoreProducts(currentStore.idx) : Object.keys(DB.products);
   var el = document.getElementById('store-list');
   if (barcodes.length === 0) { el.innerHTML = '<div class="order-empty"><div class="oe-icon">📦</div><p>Κανένα προϊόν</p></div>'; return; }
-  el.innerHTML = barcodes.map(function(bc) {
+  // Group by section
+  var bySec = {}, noSec = [];
+  barcodes.forEach(function(bc) {
     var p = prods[bc] || {name:bc, code:'—'};
-    var inOrd = order[bc] ? ' <span style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px">×' + order[bc] + '</span>' : '';
-    return '<div class="list-item" onclick="openQtyModal(\'' + bc + '\',allProds()[\'' + bc + '\']||{name:\'' + p.name.replace(/'/g,"\'") + '\',code:\'' + p.code + '\'})" style="cursor:pointer"><div class="li-info"><div class="li-name">' + p.name + inOrd + '</div><div class="li-sub">' + p.code + ' · ' + bc + '</div></div><div style="color:var(--t3)">›</div></div>';
-  }).join('');
+    var sec = getProdSec(bc, p);
+    var obj = {bc:bc, p:p};
+    if (sec) { if (!bySec[sec]) bySec[sec]=[]; bySec[sec].push(obj); }
+    else noSec.push(obj);
+  });
+  var html = '';
+  SEC_ORDER.forEach(function(sec) {
+    if (!bySec[sec]) return;
+    var s = SECS[sec];
+    html += '<div style="font-size:0.72rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.6px;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px;display:flex;justify-content:space-between"><span>' + s.i + ' ' + s.l + '</span></div>';
+    bySec[sec].forEach(function(it) {
+      var inOrd = order[it.bc] ? ' <span style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px">×' + order[it.bc] + '</span>' : '';
+      html += '<div class="list-item" onclick="openQtyModal(\'' + it.bc + '\',allProds()[\'' + it.bc + '\']||{name:\'' + it.p.name.replace(/'/g,"\\'") + '\',code:\'' + it.p.code + '\'})" style="cursor:pointer"><div class="li-info"><div class="li-name">' + it.p.name + inOrd + '</div><div class="li-sub">' + it.p.code + ' · ' + it.bc + '</div></div><div style="color:var(--t3)">›</div></div>';
+    });
+  });
+  if (noSec.length) {
+    html += '<div style="font-size:0.72rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:0.6px;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px">— Χωρίς τμήμα</div>';
+    noSec.forEach(function(it) {
+      var inOrd = order[it.bc] ? ' <span style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px">×' + order[it.bc] + '</span>' : '';
+      html += '<div class="list-item" onclick="openQtyModal(\'' + it.bc + '\',allProds()[\'' + it.bc + '\']||{name:\'' + it.p.name.replace(/'/g,"\\'") + '\',code:\'' + it.p.code + '\'})" style="cursor:pointer"><div class="li-info"><div class="li-name">' + it.p.name + inOrd + '</div><div class="li-sub">' + it.p.code + ' · ' + it.bc + '</div></div><div style="color:var(--t3)">›</div></div>';
+    });
+  }
+  el.innerHTML = html;
 }
 
 // ── QTY MODAL ──
@@ -770,73 +827,101 @@ function confirmManual() {
   }
 }
 
-// ── ORDER PREVIEW ──
-// ── SECTION LOGIC ──
+// ── ORDER PREVIEW (index-style: single email, categories in preview) ──
+function buildEmailBody() {
+  var items = Object.entries(order);
+  var prods = allProds();
+  var dateVal = document.getElementById('order-date').value;
+  var dp = dateVal.split('-');
+  var ds = dp[2] + '/' + dp[1] + '/' + dp[0];
+  var note = document.getElementById('order-note').value.trim();
+  var now = new Date().toLocaleTimeString('el-GR', {hour:'2-digit', minute:'2-digit'});
+  var bySec = {}, noSec = [], total = 0;
+  items.forEach(function(x) {
+    var key = x[0], qty = x[1];
+    var parts = key.split('||'); var bc = parts[0], variant = parts[1]||null;
+    var p = prods[bc] || {name:bc, code:'--', cat:''};
+    var displayP = variant ? {name:p.name+' ['+variant+']', code:p.code} : p;
+    var sec = getProdSec(bc, p);
+    var obj = {bc:bc, qty:qty, p:displayP};
+    if (sec) { if (!bySec[sec]) bySec[sec]=[]; bySec[sec].push(obj); }
+    else noSec.push(obj);
+    total += qty;
+  });
+  var lines = ['ΠΑΡΑΓΓΕΛΙΑ - ' + currentStore.name, ds + ' ' + now, '=============================='];
+  SEC_ORDER.forEach(function(sec) {
+    if (!bySec[sec]) return;
+    var s = SECS[sec];
+    lines.push(''); lines.push(s.i + ' ' + s.l);
+    bySec[sec].forEach(function(it) { lines.push(it.p.code + ' | ' + it.p.name + ' | ΤΕΜ:' + it.qty); });
+  });
+  if (noSec.length) {
+    lines.push(''); lines.push('— Χωρίς τμήμα');
+    noSec.forEach(function(it) { lines.push(it.p.code + ' | ' + it.p.name + ' | ΤΕΜ:' + it.qty); });
+  }
+  lines.push(''); lines.push('==============================');
+  lines.push('ΣΥΝΟΛΟ: ' + items.length + ' είδη / ' + total + ' τεμ.');
+  if (note) { lines.push(''); lines.push('ΣΗΜΕΙΩΣΗ: ' + note); }
+  return lines.join('\n');
+}
+
+function openPreview() {
+  var items = Object.entries(order);
+  if (!items.length) { notify('Δεν έχεις σκανάρει τίποτα', 'err'); return; }
+  // Prep for print (keep existing print logic)
+  var prods = allProds();
+  var date = new Date().toLocaleDateString('el-GR', {day:'2-digit', month:'2-digit', year:'numeric'});
+  var time = new Date().toLocaleTimeString('el-GR', {hour:'2-digit', minute:'2-digit'});
+  var groups = {}, noSec = [];
+  items.forEach(function(x) {
+    var key = x[0], qty = x[1];
+    var parts = key.split('||'); var bc = parts[0], variant = parts[1]||null;
+    var p = prods[bc] || {name:bc, code:'--'};
+    var displayP = variant ? {name:p.name+' ['+variant+']', code:p.code} : p;
+    var sec = getProdSec(bc, p);
+    if (sec) { if (!groups[sec]) groups[sec]=[]; groups[sec].push({bc:bc, qty:qty, p:displayP}); }
+    else noSec.push({bc:bc, qty:qty, p:displayP});
+  });
+  window._printGroups = groups;
+  window._printNoSec = noSec;
+  window._printMeta = {store: currentStore.name, date: date, time: time};
+
+  document.getElementById('order-store-lbl').textContent = currentStore.name;
+  document.getElementById('order-date').valueAsDate = new Date();
+  document.getElementById('order-note').value = '';
+  var stored = getSecEmails();
+  document.getElementById('order-email').value = stored['all'] || currentStore.email || 'info.olivesecret@gmail.com';
+  openModal('m-order');
+  setTimeout(function() {
+    document.getElementById('order-preview').textContent = buildEmailBody();
+  }, 100);
+}
+
+// Update preview live when date/note changes
+document.addEventListener('input', function(e) {
+  if (e.target.id === 'order-date' || e.target.id === 'order-note') {
+    var prev = document.getElementById('order-preview');
+    if (prev) prev.textContent = buildEmailBody();
+  }
+  if (e.target.id === 'order-email') {
+    var stored = getSecEmails(); stored['all'] = e.target.value.trim(); saveSecEmails(stored);
+  }
+});
+
+function sendEmail() {
+  var email = document.getElementById('order-email').value.trim() || 'info.olivesecret@gmail.com';
+  var dateVal = document.getElementById('order-date').value;
+  var dp = dateVal.split('-'); var ds = dp[2] + '/' + dp[1] + '/' + dp[0];
+  var subj = encodeURIComponent('Παραγγελία ' + currentStore.name + ' - ' + ds);
+  var body = encodeURIComponent(buildEmailBody());
+  window.location.href = 'mailto:' + email + '?subject=' + subj + '&body=' + body;
+  notify('Άνοιγμα email...', 'ok');
+}
 var SECS={elaiolado:{l:'ΕΛΑΙΟΛΑΔΟ',i:'🫒'},elies:{l:'ΕΛΙΕΣ',i:'🍈'},mpaxarika:{l:'ΜΠΑΧΑΡΙΚΑ/ΒΟΤΑΝΑ/ΣΕΤ',i:'🌿'},metapoiisi:{l:'ΣΥΣΚΕΥΑΣΙΑ/ΓΛΥΚΑ/ΣΑΠΟΥΝΙ',i:'🏭'}};
 function detectSec(n){n=(n||'').toUpperCase();if(/ΕΛΑΙΟΛΑΔ|OLIVE OIL/.test(n)&&!/ΣΑΠΟΥΝ/.test(n))return'elaiolado';if(/ΕΛΙΕ|ΚΑΛΑΜΩΝ|ΠΡΑΣΙΝ|ΠΙΚΑΝΤ/.test(n))return'elies';if(/ΣΑΠΟΥΝ|ΧΑΛΒ|ΜΠΑΚΛ|ΜΑΝΤΟΛ|ΜΕΛΕΚ|ΚΑΡΑΜ|ΛΟΥΚ|ΣΙΡΟΠ/.test(n))return'metapoiisi';if(/ΜΠΑΧΑΡ|ΒΟΤΑΝ|ΡΙΓΑΝΗ|ΔΙΚΤΑΜ|ΤΣΑΙ|ΣΕΤ|ΜΕΙΓΜΑ|ΠΙΠΕΡ|ΑΛΑΤ|MIX/.test(n))return'mpaxarika';return'';}
 function getProdSec(bc,p){var c=getCustomProds();if(c[bc]&&c[bc].section)return c[bc].section;return detectSec((p||{}).name||'');}
 function getSecEmails(){try{return JSON.parse(localStorage.getItem('os_se')||'{}');}catch(e){return{};}}
 function saveSecEmails(d){localStorage.setItem('os_se',JSON.stringify(d));}
-var pendEM=[];
-function openPreview(){
-  var items=Object.entries(order);
-  if(!items.length){notify('Δεν έχεις σκανάρει τίποτα','err');return;}
-  var prods=allProds();
-  var date=new Date().toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  var time=new Date().toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
-  var stored=getSecEmails();
-  var groups={},noSec=[];
-  items.forEach(function(x){
-    var key=x[0],qty=x[1];
-    var parts=key.split('||'); var bc=parts[0], variant=parts[1]||null;
-    var p=prods[bc]||{name:bc,code:'--'};
-    var displayP = variant ? {name:p.name+' ['+variant+']', code:p.code} : p;
-    var sec=getProdSec(bc,p);
-    if(sec){if(!groups[sec])groups[sec]=[];groups[sec].push({bc:bc,qty:qty,p:displayP});}
-    else noSec.push({bc:bc,qty:qty,p:displayP});
-  });
-  var totalQty=items.reduce(function(s,x){return s+x[1];},0);
-  var sub='Παραγγελία '+currentStore.name+' - '+date;
-  pendEM=[];
-  Object.keys(groups).forEach(function(sec){
-    var s=SECS[sec];
-    var body=s.i+' '+s.l+'\nΚατάστημα: '+currentStore.name+'\n'+date+' '+time+'\n'+'-'.repeat(28)+'\n';
-    var tot=0;
-    groups[sec].forEach(function(it){body+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';tot+=it.qty;});
-    body+='-'.repeat(28)+'\nΣΥΝΟΛΟ: '+groups[sec].length+' ειδη / '+tot+' τεμ.';
-    pendEM.push({sec:sec,lbl:s.i+' '+s.l,email:stored[sec]||'',sub:sub+' ['+s.l+']',body:body});
-  });
-  var bk='BACKUP - '+currentStore.name+'\n'+date+' '+time+'\n'+'='.repeat(28)+'\n';
-  Object.keys(groups).forEach(function(sec){var s=SECS[sec];bk+='\n'+s.i+' '+s.l+'\n';groups[sec].forEach(function(it){bk+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';});});
-  if(noSec.length){bk+='\nCHWRIS TMHMA\n';noSec.forEach(function(it){bk+=it.p.code+' | '+it.p.name+' | ΤΕΜ:'+it.qty+'\n';});}
-  bk+='='.repeat(28)+'\nΣΥΝΟΛΟ: '+items.length+' ειδη / '+totalQty+' τεμ.';
-  pendEM.push({sec:'bk',lbl:'📋 Backup',email:stored['bk']||'info.olivesecret@gmail.com',sub:sub+' [BACKUP]',body:bk});
-  // store groups for print access
-  window._printGroups = groups;
-  window._printNoSec = noSec;
-  window._printMeta = {store: currentStore.name, date: date, time: time};
-
-  var html='<div class="modal-handle"></div><div class="modal-title">📧 Αποστολή & Εκτύπωση</div><div class="modal-sub">'+currentStore.name+' · '+date+'</div><div style="margin:12px 0;max-height:52vh;overflow-y:auto">';
-  pendEM.forEach(function(em,i){
-    var isPrint = em.sec !== 'bk';
-    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">';
-    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
-    html+='<div style="font-size:0.82rem;font-weight:700">'+em.lbl+'</div>';
-    if(isPrint){
-      html+='<button onclick="printSection(\''+em.sec+'\')" style="padding:5px 10px;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.35);border-radius:7px;color:var(--blue);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">🖨️ Print</button>';
-    }
-    html+='</div>';
-    html+='<div style="display:flex;gap:6px"><input type="email" id="pem'+i+'" value="'+em.email+'" placeholder="email@..." style="flex:1;padding:9px 11px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.82rem;outline:none">';
-    html+='<button onclick="svEM('+i+')" style="padding:9px 12px;background:var(--s3);border:1px solid var(--border);border-radius:8px;color:var(--t2);font-size:0.75rem;font-weight:700;cursor:pointer">💾</button></div></div>';
-  });
-  html+='</div>';
-  // Print all sections button
-  html+='<button onclick="printAllSections()" style="width:100%;padding:11px;background:rgba(56,139,253,0.12);border:1px solid rgba(56,139,253,0.3);border-radius:9px;color:var(--blue);font-size:0.85rem;font-weight:700;cursor:pointer;margin-bottom:10px">🖨️ Εκτύπωση Όλων των Τμημάτων</button>';
-  html+='<div class="field"><label>Σημείωση</label><textarea id="ord-note" placeholder="π.χ. Παράδοση Παρασκευή..." style="width:100%;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--m);font-size:0.85rem;outline:none;resize:none;height:52px"></textarea></div>';
-  html+='<div class="btn-row"><button class="btn btn-secondary" onclick="closeModal(\'m-order\')">Πίσω</button><button class="btn btn-primary" onclick="sendEM()">📧 Αποστολή Όλων</button></div>';
-  document.getElementById('m-order-inner').innerHTML=html;
-  openModal('m-order');
-}
 
 function buildPrintHTML(secKeys, title){
   var groups = window._printGroups || {};
@@ -901,16 +986,6 @@ function printAllSections(){
   var w = window.open('','_blank','width=750,height=800');
   w.document.write(buildPrintHTML(secKeys, 'Παραγγελία — '+(window._printMeta||{}).store));
   w.document.close();
-}
-
-function svEM(i){var v=document.getElementById('pem'+i).value.trim();pendEM[i].email=v;var s=getSecEmails();s[pendEM[i].sec]=v;saveSecEmails(s);notify('Αποθηκεύτηκε ✓','ok');}
-function sendEM(){
-  var note=(document.getElementById('ord-note')||{value:''}).value.trim();
-  var ts=pendEM.filter(function(e){return e.email;});
-  if(!ts.length){notify('Βάλε τουλάχιστον ένα email','err');return;}
-  closeModal('m-order');
-  ts.forEach(function(em,i){setTimeout(function(){window.open('mailto:'+em.email+'?subject='+encodeURIComponent(em.sub)+'&body='+encodeURIComponent(em.body+(note?'\n\nΣΗΜΕΙΩΣΗ: '+note:'')),'_blank');},i*700);});
-  notify('Ανοίγουν '+ts.length+' emails...','ok');
 }
 
 // ── STORES ──
